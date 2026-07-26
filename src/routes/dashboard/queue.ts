@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { config } from '../../config.js';
 import { getContact } from '../../db/contacts.js';
 import {
   jobCountsForNumber,
@@ -9,6 +10,7 @@ import { setQueuePaused } from '../../db/numbers.js';
 import { dailyLimitFor } from '../../whatsapp/pacing.js';
 import { enqueueMessage, EnqueueError } from '../../whatsapp/enqueue.js';
 import { whatsappManager } from '../../whatsapp/manager.js';
+import { humanInTz } from '../../time.js';
 
 /** Shared doc metadata so these pages appear under the dashboard group. */
 const dash = (summary: string, description: string) => ({
@@ -29,6 +31,7 @@ function recentMessages() {
   return listMessages(30).map((m) => ({
     ...m,
     to: getContact(m.contact_id)?.phone_number ?? '—',
+    updated_display: humanInTz(m.updated_at),
   }));
 }
 
@@ -42,6 +45,7 @@ export async function queueDashboardRoutes(app: FastifyInstance): Promise<void> 
         active: 'queue',
         numbers: overview(),
         messages: recentMessages(),
+        tz: config.displayTz,
         flash: null,
       });
     },
@@ -70,6 +74,7 @@ export async function queueDashboardRoutes(app: FastifyInstance): Promise<void> 
         active: 'queue',
         numbers: overview(),
         messages: recentMessages(),
+        tz: config.displayTz,
         flash,
       });
     },

@@ -9,6 +9,7 @@ import { createHmac } from 'node:crypto';
 import { config } from '../config.js';
 import { getContact } from '../db/contacts.js';
 import { getMessage, type Message, type MessageStatus } from '../db/messages.js';
+import { isoInTz } from '../time.js';
 import {
   createDelivery,
   duePendingDeliveries,
@@ -68,6 +69,8 @@ function inboundPayload(message: Message, isStop: boolean) {
     is_stop: isStop,
     provider_message_id: message.provider_message_id,
     received_at: message.created_at,
+    received_at_local: isoInTz(message.created_at),
+    timezone: config.displayTz,
   };
 }
 
@@ -82,6 +85,8 @@ function statusPayload(message: Message, status: MessageStatus) {
     provider_message_id: message.provider_message_id,
     failure_reason: message.failure_reason,
     updated_at: message.updated_at,
+    updated_at_local: isoInTz(message.updated_at),
+    timezone: config.displayTz,
   };
 }
 

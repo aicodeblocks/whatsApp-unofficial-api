@@ -63,5 +63,16 @@ export const config = {
   publicBaseUrl: (
     process.env.PUBLIC_BASE_URL ?? `http://localhost:${Number(process.env.PORT ?? 3000)}`
   ).replace(/\/$/, ''),
+  /**
+   * Display timezone (IANA, e.g. "Asia/Kolkata") for the human-readable local
+   * timestamps added to API responses, webhook payloads, and the dashboard.
+   * Stored timestamps stay UTC ISO-8601; this only affects the extra *_local
+   * fields. Defaults to QUIET_TZ, then the server's local timezone.
+   */
+  displayTz:
+    process.env.APP_TZ ||
+    process.env.QUIET_TZ ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone ||
+    'UTC',
 } as const;
 

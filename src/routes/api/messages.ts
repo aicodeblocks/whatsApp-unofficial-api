@@ -10,10 +10,12 @@ import {
   jobCountsForNumber,
   jobsForNumber,
   listMessages,
+  type Message,
   type MessageType,
 } from '../../db/messages.js';
 import { getNumber, setQueuePaused } from '../../db/numbers.js';
 import { enqueueMessage, EnqueueError, type EnqueueInput } from '../../whatsapp/enqueue.js';
+import { isoInTz } from '../../time.js';
 
 const MEDIA_DIR = resolve(config.dataDir, 'media');
 
@@ -47,18 +49,31 @@ const messageSchema = {
     status: { type: 'string', enum: ['queued', 'sent', 'delivered', 'read', 'failed'] },
     provider_message_id: { type: ['string', 'null'] },
     failure_reason: { type: ['string', 'null'] },
-    created_at: { type: 'string' },
-    sent_at: { type: ['string', 'null'] },
-    updated_at: { type: 'string' },
+    created_at: { type: 'string', description: 'UTC ISO-8601.' },
+    sent_at: { type: ['string', 'null'], description: 'UTC ISO-8601.' },
+    updated_at: { type: 'string', description: 'UTC ISO-8601.' },
+    timezone: { type: 'string', description: 'IANA timezone of the *_local fields (APP_TZ).' },
+    created_at_local: { type: ['string', 'null'], description: 'created_at in the configured timezone (ISO-8601 with offset).' },
+    sent_at_local: { type: ['string', 'null'], description: 'sent_at in the configured timezone.' },
+    updated_at_local: { type: ['string', 'null'], description: 'updated_at in the configured timezone.' },
   },
 } as const;
 
-/** Public shape of a message (media_path is internal and never exposed). */
+/** Public shape of a message: media_path stripped, local timestamps added. */
+function publicMessage(m: Message) {
+  const { media_path: _mp, ...rest } = m;
+  return {
+    ...rest,
+    timezone: config.displayTz,
+    created_at_local: isoInTz(m.created_at),
+    sent_at_local: isoInTz(m.sent_at),
+    updated_at_local: isoInTz(m.updated_at),
+  };
+}
+
 function toMessageView(id: string) {
   const m = getMessage(id);
-  if (!m) return null;
-  const { media_path: _mp, ...rest } = m;
-  return rest;
+  return m ? publicMessage(m) : null;
 }
 
 /**
@@ -246,7 +261,7 @@ export async function messageApiRoutes(app: FastifyInstance): Promise<void> {
     async (req) => {
       const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
       const rows = listMessages(limit, req.query.number_id, req.query.direction);
-      return { messages: rows.map(({ media_path: _mp, ...r }) => r) };
+      return { messages: rows.map(publicMessage) };
     },
   );
 
