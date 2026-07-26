@@ -70,6 +70,7 @@
 </div>
 
 <h3 style="margin:22px 0 8px;">Queues</h3>
+<div id="queues">
 <% if (numbers.length === 0) { %>
   <div class="card"><span class="sub">No numbers yet.</span></div>
 <% } %>
@@ -102,6 +103,7 @@
     </div>
   </div>
 <% }); %>
+</div>
 
 <h3 style="margin:22px 0 8px;">Recent messages</h3>
 <div class="card" id="recent">
@@ -146,15 +148,20 @@
 </script>
 
 <script>
-// Light auto-refresh so queued → sent → delivered → read updates without a manual reload.
+// Live auto-refresh so queued → sent → delivered → read (and the per-number
+// counts) update without a manual reload. Always poll the canonical GET page
+// (/queue) — after a send the browser sits on /queue/send, which is POST-only,
+// so polling the current path would silently fail.
 setInterval(function(){
-  fetch(location.pathname, { headers: { 'X-Requested-With': 'fetch' } })
+  fetch('/queue', { headers: { 'X-Requested-With': 'fetch' } })
     .then(function(r){ return r.text(); })
     .then(function(html){
       var doc = new DOMParser().parseFromString(html, 'text/html');
-      var fresh = doc.getElementById('recent');
-      var cur = document.getElementById('recent');
-      if (fresh && cur) cur.innerHTML = fresh.innerHTML;
+      ['queues', 'recent'].forEach(function(id){
+        var fresh = doc.getElementById(id);
+        var cur = document.getElementById(id);
+        if (fresh && cur) cur.innerHTML = fresh.innerHTML;
+      });
     }).catch(function(){});
 }, 4000);
 </script>
