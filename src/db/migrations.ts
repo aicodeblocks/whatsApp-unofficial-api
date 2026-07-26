@@ -30,5 +30,67 @@ export function runMigrations(db: Database): void {
       created_at   TEXT NOT NULL,
       linked_at    TEXT
     );
+
+    -- Milestone 3: contacts (recipients), messages, and the anti-ban send queue.
+
+    CREATE TABLE IF NOT EXISTS contacts (
+      id                 TEXT PRIMARY KEY,
+      phone_number       TEXT NOT NULL UNIQUE,
+      display_name       TEXT,
+      consent_status     TEXT NOT NULL DEFAULT 'unknown',
+      consent_source     TEXT,
+      first_contacted_at TEXT,
+      last_contacted_at  TEXT,
+      created_at         TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS messages (
+      id                  TEXT PRIMARY KEY,
+      number_id           TEXT NOT NULL,
+      contact_id          TEXT NOT NULL,
+      direction           TEXT NOT NULL DEFAULT 'outbound',
+      type                TEXT NOT NULL DEFAULT 'text',
+      content             TEXT,
+      caption             TEXT,
+      media_url           TEXT,
+      media_path          TEXT,
+      status              TEXT NOT NULL DEFAULT 'queued',
+      provider_message_id TEXT,
+      failure_reason      TEXT,
+      created_at          TEXT NOT NULL,
+      sent_at             TEXT,
+      updated_at          TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_messages_number ON messages(number_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_messages_provider ON messages(provider_message_id);
+
+    CREATE TABLE IF NOT EXISTS queued_jobs (
+      id                TEXT PRIMARY KEY,
+      message_id        TEXT NOT NULL,
+      number_id         TEXT NOT NULL,
+      scheduled_send_at TEXT NOT NULL,
+      attempts          INTEGER NOT NULL DEFAULT 0,
+      state             TEXT NOT NULL DEFAULT 'waiting',
+      applied_delay_ms  INTEGER,
+      last_error        TEXT,
+      created_at        TEXT NOT NULL,
+      updated_at        TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_jobs_pick ON queued_jobs(state, number_id, scheduled_send_at);
   `);
+
+  // Idempotent ALTERs add the per-number anti-ban / warm-up columns introduced
+  // in Milestone 3 without disturbing the Milestone 2 table definition above.
+  addColumnIfMissing(db, 'whatsapp_numbers', 'warmup_started_at', 'TEXT');
+  addColumnIfMissing(db, 'whatsapp_numbers', 'daily_sent_count', 'INTEGER NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'whatsapp_numbers', 'daily_count_date', 'TEXT');
+  addColumnIfMissing(db, 'whatsapp_numbers', 'queue_paused', 'INTEGER NOT NULL DEFAULT 0');
+}
+
+/** Add a column only if it isn't already present — keeps migrations rerun-safe. */
+function addColumnIfMissing(db: Database, table: string, column: string, decl: string): void {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
+  }
 }

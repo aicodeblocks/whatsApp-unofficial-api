@@ -13,6 +13,7 @@ import {
   type NumberStatus,
   type WhatsAppNumber,
 } from '../db/numbers.js';
+import { advanceMessageStatus, getMessageByProviderId, type MessageStatus } from '../db/messages.js';
 import { silentLogger } from './logger.js';
 
 // Baileys ships as CommonJS with a default export. Loading it via createRequire
@@ -40,6 +41,36 @@ function sessionDir(id: string): string {
 function jidToPhone(jid: string | undefined): string | null {
   if (!jid) return null;
   return jid.split(':')[0].split('@')[0] || null;
+}
+
+/** Turn a bare phone number (digits, optional +) into a WhatsApp user JID. */
+export function phoneToJid(phone: string): string {
+  const digits = phone.replace(/[^0-9]/g, '');
+  return `${digits}@s.whatsapp.net`;
+}
+
+/**
+ * Map Baileys' numeric/string message status onto our delivery states.
+ * Baileys uses proto WAMessageStatus: 2=server-ack (sent), 3=delivery-ack,
+ * 4=read, 5=played. Anything below server-ack is still "in flight".
+ */
+function mapProviderStatus(status: unknown): MessageStatus | null {
+  const s = typeof status === 'string' ? status.toUpperCase() : status;
+  switch (s) {
+    case 2:
+    case 'SERVER_ACK':
+      return 'sent';
+    case 3:
+    case 'DELIVERY_ACK':
+      return 'delivered';
+    case 4:
+    case 5:
+    case 'READ':
+    case 'PLAYED':
+      return 'read';
+    default:
+      return null;
+  }
 }
 
 function ensureState(id: string): LiveState {
@@ -81,6 +112,22 @@ async function connect(id: string): Promise<void> {
   st.connecting = false;
 
   sock.ev.on('creds.update', saveCreds);
+
+  // Outbound delivery/read status. Baileys reports acks against the message
+  // key id we stored as provider_message_id when the message was sent.
+  const onStatus = (updates: any[]) => {
+    for (const u of updates ?? []) {
+      const pid: string | undefined = u?.key?.id;
+      const raw = u?.update?.status ?? u?.status;
+      if (!pid || raw == null) continue;
+      const mapped = mapProviderStatus(raw);
+      if (!mapped) continue;
+      const msg = getMessageByProviderId(pid);
+      if (msg) advanceMessageStatus(msg.id, mapped);
+    }
+  };
+  sock.ev.on('messages.update', onStatus);
+  sock.ev.on('message-receipt.update', onStatus);
 
   sock.ev.on('connection.update', async (update: any) => {
     const { connection, lastDisconnect, qr } = update;
@@ -217,5 +264,36 @@ export const whatsappManager = {
   get(id: string): NumberView | undefined {
     const row = getNumber(id);
     return row ? toView(row) : undefined;
+  },
+
+  /** True only when the number has a live, opened socket ready to send. */
+  isLinked(id: string): boolean {
+    const st = live.get(id);
+    return !!st && st.status === 'linked' && !!st.sock;
+  },
+
+  /** Drive the typing indicator ('composing' | 'paused') for the anti-ban engine. */
+  async sendPresence(id: string, jid: string, state: 'composing' | 'paused'): Promise<void> {
+    const sock = live.get(id)?.sock;
+    if (!sock) return;
+    try {
+      await sock.presenceSubscribe(jid);
+      await sock.sendPresenceUpdate(state, jid);
+    } catch {
+      /* presence is best-effort — never fail a send over it */
+    }
+  },
+
+  /**
+   * Send a message from a linked number. Returns WhatsApp's message id
+   * (used as our provider_message_id). Throws if the number isn't linked.
+   */
+  async sendMessage(id: string, jid: string, content: Record<string, unknown>): Promise<string | null> {
+    const st = live.get(id);
+    if (!st || st.status !== 'linked' || !st.sock) {
+      throw new Error('number_not_linked');
+    }
+    const sent = await st.sock.sendMessage(jid, content);
+    return sent?.key?.id ?? null;
   },
 };

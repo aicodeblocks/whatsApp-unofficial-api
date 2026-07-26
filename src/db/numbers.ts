@@ -10,6 +10,11 @@ export interface WhatsAppNumber {
   status: NumberStatus;
   created_at: string;
   linked_at: string | null;
+  // Milestone 3 — anti-ban / warm-up state.
+  warmup_started_at: string | null;
+  daily_sent_count: number;
+  daily_count_date: string | null;
+  queue_paused: number;
 }
 
 const insertStmt = db.prepare(`
@@ -49,4 +54,44 @@ export function setNumberLinked(id: string, phone: string | null): void {
 
 export function deleteNumber(id: string): void {
   deleteStmt.run(id);
+}
+
+// --- Milestone 3: anti-ban / warm-up / queue-pause helpers ---
+
+const setPausedStmt = db.prepare('UPDATE whatsapp_numbers SET queue_paused = ? WHERE id = ?');
+const setWarmupStartedStmt = db.prepare(
+  'UPDATE whatsapp_numbers SET warmup_started_at = ? WHERE id = ? AND warmup_started_at IS NULL',
+);
+const resetDailyStmt = db.prepare(
+  'UPDATE whatsapp_numbers SET daily_sent_count = 0, daily_count_date = ? WHERE id = ?',
+);
+const bumpDailyStmt = db.prepare(
+  'UPDATE whatsapp_numbers SET daily_sent_count = daily_sent_count + 1 WHERE id = ?',
+);
+
+/** Pause or resume a number's outbound queue. */
+export function setQueuePaused(id: string, paused: boolean): void {
+  setPausedStmt.run(paused ? 1 : 0, id);
+}
+
+/** Record the warm-up start date on first-ever send (no-op afterwards). */
+export function ensureWarmupStarted(id: string, dateISO: string): void {
+  setWarmupStartedStmt.run(dateISO, id);
+}
+
+/**
+ * Increment today's send count, rolling it over to 0 first when the stored
+ * day (YYYY-MM-DD) differs from `today`. Returns the count after incrementing.
+ */
+export function recordDailySend(id: string, today: string): number {
+  const row = getNumber(id);
+  if (!row) return 0;
+  if (row.daily_count_date !== today) resetDailyStmt.run(today, id);
+  bumpDailyStmt.run(id);
+  return (row.daily_count_date === today ? row.daily_sent_count : 0) + 1;
+}
+
+/** How many sends have already gone out for `today` (0 if the day rolled over). */
+export function dailyCountFor(row: WhatsAppNumber, today: string): number {
+  return row.daily_count_date === today ? row.daily_sent_count : 0;
 }
