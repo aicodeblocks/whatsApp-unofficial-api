@@ -14,6 +14,15 @@ import { config } from '../config.js';
  */
 async function swaggerPlugin(app: FastifyInstance): Promise<void> {
   await app.register(fastifySwagger, {
+    // The docs are for downstream API consumers, so only expose the /api/
+    // surface. Internal session-auth dashboard pages (login, setup, /tokens,
+    // the built-in /numbers UI, etc.) are hidden automatically.
+    transform: ({ schema, url }: { schema: any; url: string }) => {
+      if (!url.startsWith('/api/')) {
+        return { schema: { ...(schema ?? {}), hide: true }, url };
+      }
+      return { schema, url };
+    },
     openapi: {
       info: {
         title: `${config.appName} API`,
