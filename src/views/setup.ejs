@@ -1,0 +1,14 @@
+<%- include('partials/head', { title: 'Set up admin', chrome: 'auth' }) %>
+<div class="card">
+  <h1>Welcome to WaGuard</h1>
+  <p class="sub">Create your admin password to secure the dashboard. You'll use it to log in from now on.</p>
+  <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+  <form method="post" action="/setup">
+    <label for="password">Admin password</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8" />
+    <label for="confirm">Confirm password</label>
+    <input id="confirm" name="confirm" type="password" autocomplete="new-password" required minlength="8" />
+    <div style="margin-top:18px;"><button type="submit">Create &amp; continue</button></div>
+  </form>
+</div>
+<%- include('partials/foot', { chrome: 'auth' }) %>

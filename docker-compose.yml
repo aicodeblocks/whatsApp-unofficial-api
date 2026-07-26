@@ -1,0 +1,12 @@
+services:
+  waguard:
+    build: .
+    container_name: waguard
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      # All persistent data lives here so it survives restarts and rebuilds.
+      - ./data:/app/data

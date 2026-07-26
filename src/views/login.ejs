@@ -1,0 +1,12 @@
+<%- include('partials/head', { title: 'Log in', chrome: 'auth' }) %>
+<div class="card">
+  <h1>WaGuard</h1>
+  <p class="sub">Log in to the admin dashboard.</p>
+  <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+  <form method="post" action="/login">
+    <label for="password">Admin password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required />
+    <div style="margin-top:18px;"><button type="submit">Log in</button></div>
+  </form>
+</div>
+<%- include('partials/foot', { chrome: 'auth' }) %>

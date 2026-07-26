@@ -1,0 +1,48 @@
+<%- include('partials/head', { title: 'API Tokens', active: 'tokens' }) %>
+<h1>API Tokens</h1>
+<p class="sub">Tokens let downstream apps (like a CRM) call the WaGuard API. Send each request with <code>Authorization: Bearer &lt;token&gt;</code>.</p>
+
+<% if (newToken) { %>
+  <div class="card">
+    <div class="alert ok">Token created. Copy it now — it won't be shown again.</div>
+    <div class="tokenbox"><code><%= newToken %></code></div>
+  </div>
+<% } %>
+
+<div class="card">
+  <form method="post" action="/tokens" class="row" style="align-items:flex-end;">
+    <div style="flex:1; min-width:220px;">
+      <label for="name">New token name</label>
+      <input id="name" name="name" type="text" placeholder="e.g. My CRM" />
+    </div>
+    <button type="submit">Create token</button>
+  </form>
+</div>
+
+<div class="card">
+  <table>
+    <thead><tr><th>Name</th><th>Prefix</th><th>Status</th><th>Last used</th><th>Created</th><th></th></tr></thead>
+    <tbody>
+      <% if (tokens.length === 0) { %>
+        <tr><td colspan="6" class="sub">No tokens yet.</td></tr>
+      <% } %>
+      <% tokens.forEach(function(t){ %>
+        <tr>
+          <td><%= t.name %></td>
+          <td><code><%= t.token_prefix %>…</code></td>
+          <td><span class="pill <%= t.active ? 'on' : '' %>"><%= t.active ? 'active' : 'revoked' %></span></td>
+          <td class="sub"><%= t.last_used_at ? new Date(t.last_used_at).toLocaleString() : '—' %></td>
+          <td class="sub"><%= new Date(t.created_at).toLocaleDateString() %></td>
+          <td>
+            <% if (t.active) { %>
+              <form method="post" action="/tokens/<%= t.id %>/revoke" onsubmit="return confirm('Revoke this token? Apps using it will stop working.');">
+                <button class="danger" type="submit">Revoke</button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<%- include('partials/foot') %>

@@ -1,0 +1,33 @@
+<%- include('partials/head', { title: 'Overview', active: 'home' }) %>
+<h1>Overview</h1>
+<p class="sub">Your self-hosted WhatsApp API service is running.</p>
+
+<div class="card">
+  <div class="row" style="justify-content:space-between;">
+    <div>
+      <strong>Service status</strong>
+      <div class="sub" style="margin:2px 0 0;">API and dashboard are online.</div>
+    </div>
+    <span class="pill on">online</span>
+  </div>
+</div>
+
+<div class="card">
+  <strong>Active API tokens</strong>
+  <div class="sub" style="margin:2px 0 0;"><%= tokenCount %> active · <a href="/tokens">manage tokens</a></div>
+</div>
+
+<div class="card">
+  <strong>API documentation</strong>
+  <p class="sub" style="margin:2px 0 12px;">Live, auto-generated docs your downstream apps can build against.</p>
+  <div class="row">
+    <a class="btn secondary" href="/docs">Open API docs</a>
+    <a class="btn secondary" href="/openapi.json">Download OpenAPI spec</a>
+  </div>
+</div>
+
+<div class="card">
+  <strong>Coming in later milestones</strong>
+  <p class="sub" style="margin:2px 0 0;">Linking WhatsApp numbers, sending with anti-ban pacing, receiving via webhooks, and health &amp; consent monitoring.</p>
+</div>
+<%- include('partials/foot') %>

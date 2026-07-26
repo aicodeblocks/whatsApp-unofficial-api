@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title><%= typeof title !== 'undefined' ? title : 'WaGuard' %> · WaGuard</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f4f4f5; --panel:#fff; --ink:#18181b; --muted:#71717a; --line:#e4e4e7; --accent:#059669; --accent-ink:#fff; --danger:#dc2626; }
+    @media (prefers-color-scheme: dark){ :root{ --bg:#09090b; --panel:#18181b; --ink:#f4f4f5; --muted:#a1a1aa; --line:#27272a; } }
+    *{ box-sizing:border-box; } html,body{ margin:0; }
+    body{ font-family:'Inter',system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--ink); line-height:1.5; }
+    a{ color:inherit; }
+    .layout{ display:flex; min-height:100vh; }
+    .sidebar{ width:240px; flex-shrink:0; border-right:1px solid var(--line); padding:20px 14px; background:var(--panel); }
+    .brand{ font-weight:700; font-size:18px; padding:6px 10px 16px; display:flex; align-items:center; gap:8px; }
+    .brand small{ color:var(--muted); font-weight:500; font-size:11px; }
+    .nav a{ display:flex; justify-content:space-between; align-items:center; text-decoration:none; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--muted); }
+    .nav a.active{ background:var(--bg); color:var(--ink); font-weight:600; }
+    .nav a.soon{ opacity:.55; pointer-events:none; }
+    .nav .tag{ font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:1px 6px; }
+    .content{ flex:1; padding:32px 40px; max-width:900px; }
+    h1{ font-size:24px; margin:0 0 4px; } .sub{ color:var(--muted); margin:0 0 24px; }
+    .card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:18px; }
+    .row{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    label{ display:block; font-size:13px; color:var(--muted); margin:12px 0 4px; }
+    input[type=text],input[type=password]{ width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font-size:14px; }
+    button,.btn{ display:inline-block; border:0; border-radius:8px; padding:9px 14px; font-size:14px; font-weight:600; cursor:pointer; background:var(--accent); color:var(--accent-ink); text-decoration:none; }
+    button.secondary,.btn.secondary{ background:transparent; color:var(--ink); border:1px solid var(--line); }
+    button.danger{ background:transparent; color:var(--danger); border:1px solid var(--line); }
+    table{ width:100%; border-collapse:collapse; font-size:14px; }
+    th,td{ text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); }
+    th{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+    code{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; }
+    .pill{ font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+    .pill.on{ color:var(--accent); border-color:var(--accent); }
+    .alert{ padding:10px 12px; border-radius:8px; font-size:14px; margin-bottom:12px; border:1px solid var(--line); }
+    .alert.error{ color:var(--danger); border-color:var(--danger); }
+    .alert.ok{ color:var(--accent); border-color:var(--accent); }
+    .authwrap{ display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px; }
+    .authcard{ width:100%; max-width:380px; }
+    .tokenbox{ background:var(--bg); border:1px dashed var(--accent); border-radius:8px; padding:12px; word-break:break-all; margin-top:8px; }
+  </style>
+</head>
+<body>
+<% var chrome = (typeof chrome !== 'undefined') ? chrome : 'app'; %>
+<% var active = (typeof active !== 'undefined') ? active : ''; %>
+<% if (chrome === 'app') { %>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">WaGuard <small>self-hosted WhatsApp API</small></div>
+      <nav class="nav">
+        <a href="/" class="<%= active==='home'?'active':'' %>">Overview</a>
+        <a href="#" class="soon">Numbers <span class="tag">soon</span></a>
+        <a href="#" class="soon">Send &amp; Queue <span class="tag">soon</span></a>
+        <a href="#" class="soon">Contacts <span class="tag">soon</span></a>
+        <a href="#" class="soon">Webhooks <span class="tag">soon</span></a>
+        <a href="#" class="soon">Health <span class="tag">soon</span></a>
+        <a href="/tokens" class="<%= active==='tokens'?'active':'' %>">API Tokens</a>
+        <a href="/docs">API Docs</a>
+        <form method="post" action="/logout" style="margin-top:16px;">
+          <button class="secondary" style="width:100%;" type="submit">Log out</button>
+        </form>
+      </nav>
+    </aside>
+    <main class="content">
+<% } else { %>
+  <div class="authwrap"><div class="authcard">
+<% } %>

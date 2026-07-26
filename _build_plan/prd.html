@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WaGuard — PRD</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    html { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    body { font-feature-settings: "cv11", "ss01"; }
+    @media print {
+      html { background: white !important; color: black !important; color-scheme: light; }
+      html.dark { color-scheme: light; }
+      html.dark body, html.dark * { background: white !important; color: black !important; border-color: #d4d4d8 !important; }
+      .no-print { display: none !important; }
+      .print-card { break-inside: avoid; page-break-inside: avoid; }
+      header.sticky { position: static !important; backdrop-filter: none !important; }
+      main { padding-top: 0 !important; }
+      a { color: black !important; text-decoration: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 antialiased">
+  <header class="sticky top-0 z-10 backdrop-blur bg-zinc-50/80 dark:bg-zinc-950/80 border-b border-zinc-200 dark:border-zinc-800">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400">PRD · WaGuard</span>
+      <button id="theme-toggle" class="no-print inline-flex items-center justify-center w-9 h-9 rounded-md border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition" aria-label="Toggle theme">
+        <i data-lucide="sun" class="hidden dark:inline-block w-4 h-4"></i>
+        <i data-lucide="moon" class="inline-block dark:hidden w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-14">
+
+    <!-- DISCLAIMER (keep verbatim) -->
+    <div class="rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 p-4 text-sm text-amber-900 dark:text-amber-200">
+      <p><strong class="font-semibold">About this file:</strong> Everything in <code class="font-mono text-xs">_build_plan/</code> (this PRD and the per-milestone folders) is a temporary documentation artifact for the initial build-out of this codebase. These files are not functional — no code, configuration, runtime logic, tests, or deployment process should import, read, reference, or depend on anything in <code class="font-mono text-xs">_build_plan/</code>. Once the initial milestones are built and shipped, the entire <code class="font-mono text-xs">_build_plan/</code> folder is expected to be deleted from the codebase.</p>
+    </div>
+
+    <!-- HERO -->
+    <section>
+      <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">WaGuard</h1>
+      <p class="mt-5 text-lg sm:text-xl text-zinc-600 dark:text-zinc-400 leading-relaxed">A self-hosted, headless WhatsApp API that links your own number by QR — like WhatsApp Web — with no Meta Cloud API, no Business account, and no third-party provider. Its single overriding goal: drive the ban risk as close to zero as possible through human-like behavior, backed by a health-feedback monitor that learns from every warning sign.</p>
+      <div class="mt-6 flex flex-wrap gap-2">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Node.js</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">TypeScript</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Baileys</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Fastify</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">SQLite</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Docker</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">OpenAPI / Swagger</span>
+      </div>
+    </section>
+
+    <!-- REALITY NOTE -->
+    <div class="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 text-sm text-zinc-600 dark:text-zinc-400">
+      <p class="flex items-start gap-2"><i data-lucide="shield-alert" class="w-4 h-4 mt-0.5 shrink-0 text-amber-500"></i><span><span class="font-semibold text-zinc-800 dark:text-zinc-200">Reality note on bans:</span> This uses the unofficial WhatsApp Web protocol, which is against WhatsApp's Terms of Service. There's no cap or waitlist, but there is inherent ban <em>risk</em>. WaGuard minimizes it as far as technically possible — it can't eliminate it, and WhatsApp never discloses the exact reason for a ban. The health monitor captures the best available signals instead.</span></p>
+    </div>
+
+    <!-- WHAT THE APP DOES -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>What the app does
+      </h2>
+      <ul class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3 list-none p-0">
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="qr-code" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Link by QR</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Link one or more existing numbers by scanning a QR code, with automatic reconnect that keeps sessions alive.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="send" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Send via API</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">A token-secured API any app can call to send text, image, document, audio, and video messages.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="shield-check" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Anti-ban pacing</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Every send flows through a queue that mimics a human — randomized delays, per-number limits, warm-up, quiet hours.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="webhook" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Receive via webhooks</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Captures incoming messages and delivery/read status and pushes them to your systems via signed webhooks.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="activity" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Health & feedback monitor</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Watches each number for danger signs, warns early, and logs a diagnostic timeline around any flagging event.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="user-check" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Consent guardrails</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Blocked or non-consented recipients are never messaged — cutting the single biggest ban trigger.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="layout-dashboard" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Admin dashboard</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">A minimal dashboard to link numbers, manage tokens and webhooks, and inspect health, queue, and logs.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="book-open" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Self-serve API docs</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">A live, always-accurate docs page with a downloadable OpenAPI spec any downstream system can build against.</p>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <!-- ALREADY PROVIDED -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="package-check" class="w-3.5 h-3.5"></i>Already provided by the existing codebase
+      </h2>
+      <p class="mt-5 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">This is a fresh, empty project — there is no starter template. Everything is built from scratch across the milestones below. The stack is deliberately lean (Node.js + TypeScript, Baileys, Fastify, SQLite) so the service stays fast, responsive, and lightweight, and can run as a single small service on a cheap VPS. The recommended way to run it is a <span class="font-medium text-zinc-800 dark:text-zinc-200">single Docker container</span> — for ease, one command (e.g. <code class="font-mono text-xs">docker compose up</code>) brings up the whole service with only Docker on the host, and all persistent data lives on a mounted volume. A direct, non-Docker run (Node.js on the host) is also supported as a fallback — Docker is preferred for convenience, not required.</p>
+    </section>
+
+    <!-- OUT OF SCOPE -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="minus-circle" class="w-3.5 h-3.5"></i>Out of scope (v1)
+      </h2>
+      <ul class="mt-5 space-y-2.5 list-none p-0">
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Group messaging</span><span class="text-zinc-500 dark:text-zinc-400"> — different rules and ban dynamics; deferred to v2.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Bulk / broadcast campaigns</span><span class="text-zinc-500 dark:text-zinc-400"> — highest ban-risk feature; needs its own careful design in v2.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Template / message library</span><span class="text-zinc-500 dark:text-zinc-400"> — saved reusable messages; v2.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Contact import</span><span class="text-zinc-500 dark:text-zinc-400"> — CSV/address-book import; v2.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Auto-reply / chatbot / AI responses</span><span class="text-zinc-500 dark:text-zinc-400"> — WaGuard sends and receives; the downstream app decides replies.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Multi-user / team accounts & roles</span><span class="text-zinc-500 dark:text-zinc-400"> — single admin owner in v1.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Billing / subscriptions / metering</span><span class="text-zinc-500 dark:text-zinc-400"> — your own self-hosted service; no payment layer.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Analytics & reporting dashboards</span><span class="text-zinc-500 dark:text-zinc-400"> — health monitoring stays, but no campaign charts.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Mobile app / browser extension</span><span class="text-zinc-500 dark:text-zinc-400"> — API plus a minimal web dashboard only.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Cloud multi-tenant SaaS</span><span class="text-zinc-500 dark:text-zinc-400"> — v1 is single-tenant, self-hosted for your own numbers.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">ML / adaptive auto-tuning of anti-ban params</span><span class="text-zinc-500 dark:text-zinc-400"> — v1 is rule-based and logs evidence for you to learn from.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Proxy / IP rotation</span><span class="text-zinc-500 dark:text-zinc-400"> — not in v1.</span></span></li>
+      </ul>
+    </section>
+
+    <!-- DATA MODEL -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="database" class="w-3.5 h-3.5"></i>Data model
+      </h2>
+      <p class="mt-3 text-sm text-zinc-500 dark:text-zinc-400">What the app needs to remember.</p>
+      <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2"><i data-lucide="box" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i><h3 class="font-semibold text-zinc-900 dark:text-zinc-100">WhatsApp Number (Session)</h3></div>
+          <table class="mt-4 w-full text-sm"><tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">label</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">a friendly name for this number</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">phone number</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">the number itself</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">connection status</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">linked, connecting, disconnected, or flagged</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">session credentials</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">stored (encrypted) login data to stay connected without re-scanning</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">warm-up stage</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">where the number is in its gradual ramp-up</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">daily send count</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">how many messages went out today, and for which day</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">linked date</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">when it was added and last linked</td></tr>
+          </tbody></table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">Related to</span> · Message, Queued Job, Health Event</p>
+        </div>
+
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2"><i data-lucide="box" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i><h3 class="font-semibold text-zinc-900 dark:text-zinc-100">API Client / Token</h3></div>
+          <table class="mt-4 w-full text-sm"><tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">name</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">label for the downstream app this token belongs to</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">token</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">the secret value presented on every call</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">scopes</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">what this token is allowed to do</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">active status</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">whether it's currently valid or revoked</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">last-used time</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">when it last made a call</td></tr>
+          </tbody></table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">Related to</span> · app-wide (single owner)</p>
+        </div>
+
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2"><i data-lucide="box" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i><h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Contact / Recipient</h3></div>
+          <table class="mt-4 w-full text-sm"><tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">phone number</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">the recipient's number</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">display name</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">optional friendly name</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">consent status</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">opted-in, unknown, or blocked</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">consent source</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">where the consent or block came from</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">first / last contacted</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">timestamps of the relationship</td></tr>
+          </tbody></table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">Related to</span> · Message</p>
+        </div>
+
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2"><i data-lucide="box" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i><h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Message</h3></div>
+          <table class="mt-4 w-full text-sm"><tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">direction</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">outbound or inbound</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">number / recipient</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">which linked Number and which Contact</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">type</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">text, image, document, audio, or video</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">content / caption</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">the text or media caption</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">media reference</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">pointer to the stored media file, if any</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">status</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">queued, sent, delivered, read, or failed</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">provider message id</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">WhatsApp's own id for the message</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">failure reason</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">why it failed, if it did</td></tr>
+          </tbody></table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">Related to</span> · Number, Contact, Queued Job</p>
+        </div>
+
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2"><i data-lucide="box" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i><h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Queued Job</h3></div>
+          <table class="mt-4 w-full text-sm"><tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">message</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">the Message this job will send</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">scheduled-send time</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">when it's allowed to go out</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">attempt count</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">how many times sending has been tried</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">state</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">waiting, processing, done, or failed</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">applied delay</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">the human-like delay chosen for this send</td></tr>
+          </tbody></table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">Related to</span> · Number, Message</p>
+        </div>
+
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2"><i data-lucide="box" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i><h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Webhook Endpoint</h3></div>
+          <table class="mt-4 w-full text-sm"><tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">target URL</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">where events get pushed</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">event types</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">which events this endpoint subscribes to</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">secret</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">used to sign payloads so the receiver can verify them</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">active status</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">whether it's currently receiving</td></tr>
+          </tbody></table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">Related to</span> · app-wide (single owner)</p>
+        </div>
+
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2"><i data-lucide="box" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i><h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Health Event</h3></div>
+          <table class="mt-4 w-full text-sm"><tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">number</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">which Number the event concerns</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">event type</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">disconnect, block-signal, delivery-drop, flagged, or warm-up-change</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">severity</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">how serious it is</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">activity snapshot</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">recent send rate, volume, and timing around the event</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">notes</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">human-readable description</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">timestamp</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">when it happened</td></tr>
+          </tbody></table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">Related to</span> · Number</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- MILESTONES -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="route" class="w-3.5 h-3.5"></i>Milestones
+      </h2>
+      <div class="mt-5 space-y-5">
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">1</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Foundation & Access</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">Stands up the running service, storage, admin login, API-token authentication, and the live (initially empty) auto-generated API documentation page.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Single Docker container (recommended), one command to start — only Docker on the host; data on a mounted volume; non-Docker run supported as fallback</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Password-protected admin login (single owner)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Create, name, and revoke API tokens</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Token auth: calls without a valid token are rejected</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Live auto-generated API docs page + downloadable OpenAPI spec</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Dashboard shell with navigation for later pages</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Any WhatsApp connection or QR linking</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Sending or receiving messages</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Anti-ban engine, queue, health monitor, consent</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Multiple admin users or roles</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> You can bring the whole service up with one Docker command on a host that has only Docker installed (non-Docker run also works as a fallback), log in, create and revoke a token, get rejected calling the API without one, open the live docs page and download the OpenAPI spec, and confirm data survives a container restart.</span></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">2</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Link a Number</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">Adds the WhatsApp connection: scan a QR code to link a number, keep it connected, and see its live status.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Dashboard QR code to scan from WhatsApp → Linked Devices</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Multiple numbers, each with a live status badge</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Automatic reconnect without re-scanning</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Re-scan prompt only when the session is truly invalidated</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Unlink / log-out per number; status API endpoint</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Sending or receiving messages</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Pairing via phone-number code (v2)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Automatic failover to a backup number</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> You can scan the QR, see the number go "linked", restart the service and have it reconnect without re-scanning, and unlink from the dashboard.</span></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">3</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Safe Sending</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">Delivers the core value: a send API whose messages flow through the anti-ban queue and pacing engine so they go out like a real person sent them.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Send API for text, image, document, audio, video (URL or upload)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Trackable status: queued → sent → delivered → read / failed</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Anti-ban engine: delays, typing sim, per-number limits, warm-up, throttling, quiet hours</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Scheduled sends and queue visibility with auto-retry</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Pause/resume a number's queue; queue survives restart</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Receiving messages or webhooks (M4)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Health monitor and consent guardrails (M5)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Multi-recipient, groups, broadcasts (v2)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Buttons/lists, polls, reactions, edit/delete sent</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> You can call the send API for text and media, watch it pass through the queue with a human-like delay and typing indicator, see status reach delivered/read, schedule a future send, and pause/resume a number.</span></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">4</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Receiving & Webhooks</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">Closes the loop: incoming messages and status updates are captured, stored, and pushed to your downstream systems.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Incoming messages captured and stored</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Webhook config page: URL, event types, recent deliveries</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Events for incoming messages + outbound status updates</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Incoming media stored with a reference; signed payloads</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Automatic retry if the endpoint is temporarily down</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Health monitor and consent enforcement (M5)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Multiple webhook endpoints / per-event routing</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>A pull/polling API for message history</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> You can configure a webhook URL, message your linked number from another phone, and see a signed webhook fire with the message and media reference, plus status-update webhooks for outbound messages.</span></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">5</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Health & Consent</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">Completes the anti-ban story: continuous health monitoring with a diagnostic feedback log, consent guardrails, and final docs polish.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Live health status per number (healthy / at-risk / flagged)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Danger-sign detection + early warnings to dashboard & webhook</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Health Event log with activity snapshot + post-flag timeline</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Auto cool-down of at-risk numbers</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Consent guardrails: block rejects, unknown-policy, STOP auto-block</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Searchable contacts, invalid-number rejection, docs "try it" + full spec</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Predictive ML risk scoring / parameter auto-tuning</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Automatic remediation beyond cool-down</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Opt-in web forms, double opt-in, consent import (v2)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Per-number (rather than global) consent policies</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> You can see live health per number, trigger and view a health event with its snapshot, watch an at-risk number auto-cool-down, have a send to a blocked contact rejected, auto-block via inbound STOP, and use "try it" on the finished docs.</span></p>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <footer class="pt-8 border-t border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-400">
+      Generated by <span class="font-medium">bm-prd-creator</span>. Open the milestone-1 <code class="font-mono">prompt.md</code> to start building.
+    </footer>
+  </main>
+
+  <script>
+    (function () {
+      var html = document.documentElement;
+      var stored = localStorage.getItem('prd-theme');
+      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var initial = stored ? stored : (prefersDark ? 'dark' : 'light');
+      if (initial === 'dark') html.classList.add('dark');
+      var btn = document.getElementById('theme-toggle');
+      if (btn) {
+        btn.addEventListener('click', function () {
+          var isDark = html.classList.toggle('dark');
+          localStorage.setItem('prd-theme', isDark ? 'dark' : 'light');
+        });
+      }
+      if (window.lucide) window.lucide.createIcons();
+    })();
+  </script>
+</body>
+</html>
