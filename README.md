@@ -122,6 +122,25 @@ Later milestones add: receiving via webhooks, and health & consent monitoring. S
 
 Send **text, image, document, audio, and video** messages from a linked number. Every send is routed through an **anti-ban queue** that paces it like a real person — randomized delays, a typing indicator before sending, per-number daily limits with a warm-up ramp, and overnight quiet hours — then tracks its status from `queued` to `delivered`/`read`.
 
+### How Safe Sending protects your number
+
+The single most important design goal is keeping your number safe. A message you submit is **never fired instantly** — it's queued and released the way a human would send it. Each of these behaviours is applied automatically to every outbound message:
+
+- **Randomized human delays.** A random gap (default **6–25s**) is inserted between consecutive sends on the same number, so there's never a machine-gun burst. The exact delay is chosen fresh for every message.
+- **One message at a time, per number.** Sends on a number are serialized with a cooldown after each — never parallel blasts. The queue releases at most one message per number at a time.
+- **Typing simulation.** Right before each message, the number shows **"typing…"** for a realistic, length-proportional time (short text ≈ 1–2s, long text up to ~9s), then stops, then the message goes out — mirroring the rhythm of a real person typing and hitting send.
+- **Per-number daily limits + warm-up ramp.** A brand-new number starts small (**~20 messages/day**) and climbs gradually over about a week (`20 → 40 → 80 → 120 → 160 → 200 → …` up to a full ceiling of 250/day). Sudden high volume from a fresh number is one of the biggest flag triggers, so it's avoided by design. When the daily cap is hit, further messages wait for the next day.
+- **Quiet hours.** No sends overnight (default **21:00–08:00**, server-local or a configured timezone). Messages queued during quiet hours are **held** and released automatically in the morning — humans don't blast messages at 3am.
+- **Burst / rate throttling.** The randomized cooldown plus one-release-at-a-time together guarantee no rapid bursts, even if you enqueue hundreds of messages at once.
+- **Friendly connection footprint.** The number does not force itself "online" on connect, and presents a stable desktop-WhatsApp fingerprint.
+- **Gentle failure handling.** A failed send retries with a backoff (default up to 3 attempts) instead of hammering, then records the failure reason.
+- **Recipient validation.** Obviously malformed numbers are rejected before anything is queued.
+- **Pause / resume + durable queue.** You can pause a number's queue at any time; queued and scheduled messages survive a service restart, and anything interrupted mid-send is picked back up automatically.
+
+> **Reality note:** this uses the unofficial WhatsApp Web protocol, so these measures **reduce** ban risk as far as technically possible — they cannot make it zero. (Health monitoring and consent guardrails in Milestone 5 reduce it further.)
+
+**About the "typing…" indicator (what the recipient sees).** When WaGuard shows "typing…", WhatsApp displays it **live** at the top of the chat on the recipient's phone — exactly as if a person were typing — a moment before your message arrives. It is **ephemeral**: WhatsApp only shows it while the recipient actually has *your* chat open on screen at that instant. If their app is closed, locked, or they're on a different chat, they simply receive the message (and its notification) and never see the past typing state. To watch it happen, keep the recipient's chat open on the receiving phone while you send — you'll see "typing…" appear briefly, then the message. It's only ever shown to the person you're messaging, never broadcast.
+
 ### Messaging API endpoints
 
 | Method | Path | Purpose |
