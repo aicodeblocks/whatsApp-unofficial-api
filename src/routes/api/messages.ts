@@ -52,10 +52,10 @@ const messageSchema = {
     created_at: { type: 'string', description: 'UTC ISO-8601.' },
     sent_at: { type: ['string', 'null'], description: 'UTC ISO-8601.' },
     updated_at: { type: 'string', description: 'UTC ISO-8601.' },
-    timezone: { type: 'string', description: 'IANA timezone of the *_local fields (APP_TZ).' },
-    created_at_local: { type: ['string', 'null'], description: 'created_at in the configured timezone (ISO-8601 with offset).' },
-    sent_at_local: { type: ['string', 'null'], description: 'sent_at in the configured timezone.' },
-    updated_at_local: { type: ['string', 'null'], description: 'updated_at in the configured timezone.' },
+    timezone: { type: 'string', description: 'IANA timezone of the *_local fields (APP_TZ). The UTC *_at fields are authoritative; *_local is convenience only — convert the UTC value to your own users’ timezone.' },
+    created_at_local: { type: ['string', 'null'], description: 'created_at rendered in the configured display timezone (ISO-8601 with offset). Convenience only; created_at (UTC) is authoritative.' },
+    sent_at_local: { type: ['string', 'null'], description: 'sent_at in the display timezone. Convenience only; sent_at (UTC) is authoritative.' },
+    updated_at_local: { type: ['string', 'null'], description: 'updated_at in the display timezone. Convenience only; updated_at (UTC) is authoritative.' },
   },
 } as const;
 

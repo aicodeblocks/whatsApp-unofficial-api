@@ -64,15 +64,36 @@ export const config = {
     process.env.PUBLIC_BASE_URL ?? `http://localhost:${Number(process.env.PORT ?? 3000)}`
   ).replace(/\/$/, ''),
   /**
-   * Display timezone (IANA, e.g. "Asia/Kolkata") for the human-readable local
-   * timestamps added to API responses, webhook payloads, and the dashboard.
-   * Stored timestamps stay UTC ISO-8601; this only affects the extra *_local
-   * fields. Defaults to QUIET_TZ, then the server's local timezone.
+   * Display timezone (IANA, e.g. "America/New_York") for the human-readable
+   * local timestamps added to API responses, webhook payloads, and the
+   * dashboard. Stored timestamps stay UTC ISO-8601; this only affects the extra
+   * *_local fields. Defaults to QUIET_TZ, then the server's local timezone.
+   * Validated at boot — an invalid zone falls back to UTC (with a warning)
+   * rather than throwing on every timestamp format.
    */
-  displayTz:
+  displayTz: resolveDisplayTz(),
+} as const;
+
+/** True if `tz` is a timezone Intl accepts (an invalid one throws). */
+function isValidTimeZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Pick the display timezone from env, falling back safely to UTC if invalid. */
+function resolveDisplayTz(): string {
+  const candidate =
     process.env.APP_TZ ||
     process.env.QUIET_TZ ||
     Intl.DateTimeFormat().resolvedOptions().timeZone ||
-    'UTC',
-} as const;
+    'UTC';
+  if (isValidTimeZone(candidate)) return candidate;
+  // eslint-disable-next-line no-console
+  console.warn(`[config] Invalid APP_TZ "${candidate}" — falling back to UTC for display timestamps.`);
+  return 'UTC';
+}
 
