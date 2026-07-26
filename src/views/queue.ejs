@@ -125,6 +125,27 @@
 </div>
 
 <script>
+// Match the form fields to the selected message type: text uses the Text field;
+// media types use Media URL + Caption. Greying the inapplicable fields prevents
+// the "pasted a URL but left Type on text" mistake (the server also rejects it).
+(function(){
+  var typeSel = document.getElementById('type');
+  if (!typeSel) return;
+  function sync(){
+    var isText = typeSel.value === 'text';
+    var content = document.getElementById('content');
+    var media = document.getElementById('media_url');
+    var caption = document.getElementById('caption');
+    if (content){ content.disabled = !isText; content.style.opacity = isText ? '1' : '.5'; }
+    if (media){ media.disabled = isText; media.style.opacity = isText ? '.5' : '1'; }
+    if (caption){ caption.disabled = isText; caption.style.opacity = isText ? '.5' : '1'; }
+  }
+  typeSel.addEventListener('change', sync);
+  sync();
+})();
+</script>
+
+<script>
 // Light auto-refresh so queued → sent → delivered → read updates without a manual reload.
 setInterval(function(){
   fetch(location.pathname, { headers: { 'X-Requested-With': 'fetch' } })

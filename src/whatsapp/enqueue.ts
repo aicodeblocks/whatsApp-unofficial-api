@@ -50,6 +50,14 @@ export function enqueueMessage(input: EnqueueInput): Message {
     if (!input.content || !input.content.trim()) {
       throw new EnqueueError('missing_content', 'A text message needs non-empty content.');
     }
+    // Guard against the common mistake of filling a media URL/file but leaving
+    // Type on "text" — that would silently drop the media. Fail loudly instead.
+    if (input.media_url || input.media_path) {
+      throw new EnqueueError(
+        'type_media_mismatch',
+        'Type is "text" but a media URL/file was provided. Select a media type (image, document, audio, or video) to send media, or remove the media.',
+      );
+    }
   } else if (!input.media_url && !input.media_path) {
     throw new EnqueueError('missing_media', `A ${type} message needs media_url or an uploaded file.`);
   }
