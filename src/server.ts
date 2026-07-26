@@ -15,8 +15,10 @@ import { systemRoutes } from './routes/api/system.js';
 import { dashboardRoutes } from './routes/dashboard/index.js';
 import { numberDashboardRoutes } from './routes/dashboard/numbers.js';
 import { queueDashboardRoutes } from './routes/dashboard/queue.js';
+import { webhookDashboardRoutes } from './routes/dashboard/webhooks.js';
 import { whatsappManager } from './whatsapp/manager.js';
 import { startQueue } from './whatsapp/queue.js';
+import { startWebhookWorker } from './whatsapp/webhooks.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -43,6 +45,7 @@ async function main(): Promise<void> {
   await app.register(async (instance) => dashboardRoutes(instance));
   await app.register(async (instance) => numberDashboardRoutes(instance));
   await app.register(async (instance) => queueDashboardRoutes(instance));
+  await app.register(async (instance) => webhookDashboardRoutes(instance));
 
   try {
     await app.listen({ port: config.port, host: config.host });
@@ -54,6 +57,9 @@ async function main(): Promise<void> {
 
     // Start the anti-ban send queue worker (recovers any interrupted jobs).
     startQueue();
+
+    // Start the webhook delivery/retry worker.
+    startWebhookWorker();
   } catch (err) {
     app.log.error(err);
     process.exit(1);

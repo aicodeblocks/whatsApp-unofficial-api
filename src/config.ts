@@ -48,4 +48,14 @@ export const config = {
   cookieSecure: process.env.COOKIE_SECURE === 'true',
   /** Marketing-friendly name surfaced in the dashboard and docs. */
   appName: 'WaGuard',
+  /**
+   * Public base URL of this service, used to build absolute media-download URLs
+   * inside webhook payloads (e.g. https://wa.example.com). Falls back to
+   * http://<host>:<port>, which is only reachable if the receiver shares the
+   * network — set this in production so downstream systems can fetch media.
+   */
+  publicBaseUrl: (
+    process.env.PUBLIC_BASE_URL ?? `http://localhost:${Number(process.env.PORT ?? 3000)}`
+  ).replace(/\/$/, ''),
 } as const;
+

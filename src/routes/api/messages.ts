@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { mkdirSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
-import { extname, resolve } from 'node:path';
+import { basename, extname, resolve } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { config } from '../../config.js';
 import {
@@ -16,6 +16,22 @@ import { getNumber, setQueuePaused } from '../../db/numbers.js';
 import { enqueueMessage, EnqueueError, type EnqueueInput } from '../../whatsapp/enqueue.js';
 
 const MEDIA_DIR = resolve(config.dataDir, 'media');
+
+/** Content-type by file extension for serving stored media. */
+const MIME_BY_EXT: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.mp4': 'video/mp4',
+  '.3gp': 'video/3gpp',
+  '.ogg': 'audio/ogg',
+  '.mp3': 'audio/mpeg',
+  '.m4a': 'audio/mp4',
+  '.aac': 'audio/aac',
+  '.pdf': 'application/pdf',
+};
 
 const messageSchema = {
   type: 'object',
@@ -174,6 +190,34 @@ export async function messageApiRoutes(app: FastifyInstance): Promise<void> {
       const view = toMessageView(req.params.id);
       if (!view) return reply.code(404).send({ error: 'not_found' });
       return view;
+    },
+  );
+
+  // Download a message's stored media (inbound or uploaded). Referenced by the
+  // media_url in inbound webhook payloads.
+  app.get<{ Params: { id: string } }>(
+    '/api/v1/messages/:id/media',
+    {
+      preHandler: app.requireApiToken,
+      schema: {
+        tags: ['messages'],
+        summary: 'Download a message’s media',
+        description:
+          'Streams the stored media file for a message (e.g. an inbound image/document). Inbound webhook payloads point here via media_url. Requires a Bearer token.',
+        security: [{ bearerAuth: [] }],
+        params: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+        response: { 404: { type: 'object', properties: { error: { type: 'string' } } } },
+      },
+    },
+    async (req, reply) => {
+      const m = getMessage(req.params.id);
+      if (!m || !m.media_path) return reply.code(404).send({ error: 'no_media' });
+      // Confine to the media dir defensively (paths are app-generated UUIDs).
+      const path = resolve(MEDIA_DIR, basename(m.media_path));
+      if (!existsSync(path)) return reply.code(404).send({ error: 'file_missing' });
+      const ext = extname(path).toLowerCase();
+      reply.header('content-type', MIME_BY_EXT[ext] ?? 'application/octet-stream');
+      return reply.send(createReadStream(path));
     },
   );
 

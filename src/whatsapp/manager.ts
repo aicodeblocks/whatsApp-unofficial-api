@@ -15,13 +15,21 @@ import {
 } from '../db/numbers.js';
 import { advanceMessageStatus, getMessageByProviderId, type MessageStatus } from '../db/messages.js';
 import { silentLogger } from './logger.js';
+import { handleInbound } from './inbound.js';
+import { emitMessageStatus } from './webhooks.js';
 
 // Baileys ships as CommonJS with a default export. Loading it via createRequire
 // avoids ESM/CJS interop pitfalls that differ between tsx and compiled Node ESM.
 const require = createRequire(import.meta.url);
 const baileys = require('@whiskeysockets/baileys');
 const makeWASocket = baileys.default as (opts: any) => any;
-const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } = baileys;
+const {
+  useMultiFileAuthState,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+  Browsers,
+  downloadMediaMessage,
+} = baileys;
 
 interface LiveState {
   status: NumberStatus;
@@ -123,11 +131,32 @@ async function connect(id: string): Promise<void> {
       const mapped = mapProviderStatus(raw);
       if (!mapped) continue;
       const msg = getMessageByProviderId(pid);
-      if (msg) advanceMessageStatus(msg.id, mapped);
+      // Only fire a status webhook when the status actually advanced.
+      if (msg && advanceMessageStatus(msg.id, mapped)) emitMessageStatus(msg.id, mapped);
     }
   };
   sock.ev.on('messages.update', onStatus);
   sock.ev.on('message-receipt.update', onStatus);
+
+  // Inbound messages. `notify` = a genuinely new message (vs history sync
+  // 'append'). We skip our own echoes, groups, and status broadcasts.
+  sock.ev.on('messages.upsert', (payload: any) => {
+    if (payload?.type !== 'notify') return;
+    for (const raw of payload.messages ?? []) {
+      const remote: string | undefined = raw?.key?.remoteJid;
+      if (raw?.key?.fromMe || !remote) continue;
+      if (remote.endsWith('@g.us') || remote === 'status@broadcast' || remote.endsWith('@newsletter')) {
+        continue;
+      }
+      const fromPhone = jidToPhone(remote);
+      if (!fromPhone) continue;
+      const download: (m: any) => Promise<Buffer> = (m) =>
+        downloadMediaMessage(m, 'buffer', {}, { logger: silentLogger, reuploadRequest: sock.updateMediaMessage });
+      handleInbound(id, fromPhone, raw, download).catch(() => {
+        /* never let one bad inbound message crash the socket handler */
+      });
+    }
+  });
 
   sock.ev.on('connection.update', async (update: any) => {
     const { connection, lastDisconnect, qr } = update;

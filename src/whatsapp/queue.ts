@@ -30,6 +30,7 @@ import {
 } from '../db/numbers.js';
 import { buildContent } from './media.js';
 import { whatsappManager, phoneToJid } from './manager.js';
+import { emitMessageStatus } from './webhooks.js';
 import {
   dailyLimitFor,
   pacing,
@@ -154,6 +155,7 @@ async function releaseSend(job: QueuedJob, messageId: string, numberId: string):
 
     markMessageSent(messageId, providerId);
     advanceMessageStatus(messageId, 'sent');
+    emitMessageStatus(messageId, 'sent');
     markContacted(contact.id);
     const iso = new Date().toISOString();
     ensureWarmupStarted(numberId, iso);
@@ -168,6 +170,7 @@ async function releaseSend(job: QueuedJob, messageId: string, numberId: string):
     if (attempts >= pacing.maxAttempts) {
       failJob(job.id, reason);
       markMessageFailed(messageId, reason);
+      emitMessageStatus(messageId, 'failed');
     } else {
       const backoff = pacing.retryBackoffMs * attempts;
       rescheduleJob(job.id, new Date(Date.now() + backoff).toISOString(), reason);

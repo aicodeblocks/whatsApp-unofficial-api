@@ -77,6 +77,38 @@ export function runMigrations(db: Database): void {
       updated_at        TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_jobs_pick ON queued_jobs(state, number_id, scheduled_send_at);
+
+    -- Milestone 4: the (single, in v1) outbound webhook endpoint and a durable
+    -- delivery log so events survive a temporarily-down receiver and can retry.
+
+    CREATE TABLE IF NOT EXISTS webhook_endpoints (
+      id         TEXT PRIMARY KEY,
+      url        TEXT NOT NULL,
+      secret     TEXT NOT NULL,
+      events     TEXT NOT NULL DEFAULT 'message.inbound,message.status',
+      active     INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS webhook_deliveries (
+      id              TEXT PRIMARY KEY,
+      endpoint_id     TEXT NOT NULL,
+      event_type      TEXT NOT NULL,
+      payload         TEXT NOT NULL,
+      status          TEXT NOT NULL DEFAULT 'pending',
+      attempts        INTEGER NOT NULL DEFAULT 0,
+      response_code   INTEGER,
+      last_error      TEXT,
+      next_attempt_at TEXT NOT NULL,
+      created_at      TEXT NOT NULL,
+      updated_at      TEXT NOT NULL,
+      delivered_at    TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_deliveries_pending
+      ON webhook_deliveries(status, next_attempt_at);
+    CREATE INDEX IF NOT EXISTS idx_deliveries_recent
+      ON webhook_deliveries(created_at);
   `);
 
   // Idempotent ALTERs add the per-number anti-ban / warm-up columns introduced

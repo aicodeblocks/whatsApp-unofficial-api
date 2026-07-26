@@ -89,6 +89,41 @@ export function createMessage(m: NewMessage): Message {
   return getMessage(id)!;
 }
 
+const insertInboundStmt = db.prepare(`
+  INSERT INTO messages (id, number_id, contact_id, direction, type, content, caption,
+                        media_path, status, provider_message_id, created_at, updated_at)
+  VALUES (@id, @number_id, @contact_id, 'inbound', @type, @content, @caption,
+          @media_path, 'delivered', @provider_message_id, @now, @now)
+`);
+
+export interface NewInboundMessage {
+  number_id: string;
+  contact_id: string;
+  type: MessageType;
+  content?: string | null;
+  caption?: string | null;
+  media_path?: string | null;
+  provider_message_id?: string | null;
+}
+
+/** Store a received message. Inbound messages are 'delivered' on arrival. */
+export function createInboundMessage(m: NewInboundMessage): Message {
+  const id = randomUUID();
+  const now = new Date().toISOString();
+  insertInboundStmt.run({
+    id,
+    number_id: m.number_id,
+    contact_id: m.contact_id,
+    type: m.type,
+    content: m.content ?? null,
+    caption: m.caption ?? null,
+    media_path: m.media_path ?? null,
+    provider_message_id: m.provider_message_id ?? null,
+    now,
+  });
+  return getMessage(id)!;
+}
+
 export function getMessage(id: string): Message | undefined {
   return getMessageStmt.get(id) as Message | undefined;
 }
@@ -118,11 +153,12 @@ const STATUS_RANK: Record<MessageStatus, number> = {
   read: 3,
   failed: 1,
 };
-export function advanceMessageStatus(id: string, status: MessageStatus): void {
+export function advanceMessageStatus(id: string, status: MessageStatus): boolean {
   const row = getMessage(id);
-  if (!row) return;
-  if (STATUS_RANK[status] <= STATUS_RANK[row.status]) return;
+  if (!row) return false;
+  if (STATUS_RANK[status] <= STATUS_RANK[row.status]) return false;
   setStatusStmt.run({ id, status, now: new Date().toISOString() });
+  return true;
 }
 
 export function markMessageFailed(id: string, reason: string): void {

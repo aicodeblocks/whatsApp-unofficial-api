@@ -1,0 +1,94 @@
+<%- include('partials/head', { title: 'Webhooks', active: 'webhooks' }) %>
+<%
+  function esc(v){ return String(v==null?'':v).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];}); }
+  function deliveryPill(s){
+    if(s==='success') return '<span class="pill linked">success</span>';
+    if(s==='failed')  return '<span class="pill bad">failed</span>';
+    return '<span class="pill warn">pending</span>';
+  }
+  var subscribed = endpoint ? endpoint.events.split(',') : allEvents.slice();
+%>
+<h1>Webhooks</h1>
+<p class="sub">Push incoming messages and outbound status updates to your own systems. Payloads are signed so you can verify them.</p>
+
+<% if (flash) { %>
+  <div class="alert <%= flash.ok ? 'ok' : 'error' %>"><%= flash.text %></div>
+<% } %>
+
+<div class="card">
+  <h3 style="margin:0 0 4px;">Endpoint</h3>
+  <form method="post" action="/webhooks">
+    <label for="url">Target URL</label>
+    <input id="url" name="url" type="text" placeholder="https://your-app.example.com/waguard/webhook"
+           value="<%= endpoint ? esc(endpoint.url) : '' %>" />
+
+    <label style="margin-top:16px;">Events</label>
+    <div class="row" style="gap:16px;">
+      <% allEvents.forEach(function(ev){ %>
+        <label style="display:flex; align-items:center; gap:6px; margin:0; color:var(--ink);">
+          <input type="checkbox" name="events" value="<%= ev %>" <%= subscribed.indexOf(ev)>=0 ? 'checked' : '' %> />
+          <code><%= ev %></code>
+        </label>
+      <% }); %>
+    </div>
+
+    <label style="margin-top:16px; display:flex; align-items:center; gap:6px; color:var(--ink);">
+      <input type="checkbox" name="active" <%= (!endpoint || endpoint.active) ? 'checked' : '' %> />
+      Active (deliver events)
+    </label>
+
+    <div style="margin-top:16px;"><button type="submit">Save webhook</button></div>
+  </form>
+</div>
+
+<% if (endpoint) { %>
+<div class="card">
+  <h3 style="margin:0 0 4px;">Signing secret</h3>
+  <p class="muted-note" style="margin:0 0 8px;">
+    Each request carries <code>X-WaGuard-Signature: sha256=&lt;hmac&gt;</code> — the HMAC-SHA256 of the raw request body keyed with this secret. Recompute it on your side to verify authenticity.
+  </p>
+  <div class="tokenbox" id="secretbox" data-secret="<%= esc(endpoint.secret) %>">••••••••••••••••••••••••••••••••</div>
+  <div class="row" style="gap:8px; margin-top:10px;">
+    <button type="button" class="secondary" onclick="toggleSecret()">Reveal</button>
+    <form method="post" action="/webhooks/regenerate-secret" onsubmit="return confirm('Rotate the secret? Your receiver must be updated with the new value.');">
+      <button type="submit" class="secondary">Regenerate</button>
+    </form>
+    <form method="post" action="/webhooks/test">
+      <button type="submit" class="secondary">Send test event</button>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<h3 style="margin:22px 0 8px;">Recent deliveries</h3>
+<div class="card">
+  <table>
+    <thead><tr><th>Event</th><th>Status</th><th>Code</th><th>Attempts</th><th>Last error</th><th>When</th></tr></thead>
+    <tbody>
+      <% if (deliveries.length === 0) { %>
+        <tr><td colspan="6" class="sub">No deliveries yet.</td></tr>
+      <% } %>
+      <% deliveries.forEach(function(d){ %>
+        <tr>
+          <td><code><%= esc(d.event_type) %></code></td>
+          <td><%- deliveryPill(d.status) %></td>
+          <td class="muted-note"><%= d.response_code == null ? '—' : d.response_code %></td>
+          <td class="muted-note"><%= d.attempts %></td>
+          <td class="muted-note"><%= esc((d.last_error||'').slice(0,40)) || '—' %></td>
+          <td class="muted-note"><%= esc((d.updated_at||'').replace('T',' ').slice(0,19)) %></td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+
+<script>
+function toggleSecret(){
+  var box = document.getElementById('secretbox');
+  if(!box) return;
+  var real = box.getAttribute('data-secret');
+  if(box.dataset.shown === '1'){ box.textContent = '••••••••••••••••••••••••••••••••'; box.dataset.shown='0'; }
+  else { box.textContent = real; box.dataset.shown='1'; }
+}
+</script>
+<%- include('partials/foot') %>
