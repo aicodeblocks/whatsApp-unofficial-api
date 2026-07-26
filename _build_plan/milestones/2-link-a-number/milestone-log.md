@@ -62,6 +62,17 @@ Tested non-Docker and in the Docker container (`docker compose`), 0 server error
 - **Contacts:** M3/M5 introduce the `contacts` table; sending will need to resolve/create a Contact for the recipient.
 - Follow the established patterns: schema'd routes under `/api/v1` (auto-docs), `requireApiToken` for API, `requireAdmin` for dashboard, EJS shell with `chrome:'app'`.
 
+## Addendum — token API for the full linking flow (2026-07-26)
+
+The initial M2 build only exposed the QR on the session-auth dashboard endpoint; the token API stripped it. Per user requirement (downstream systems need to drive linking themselves), added token-authenticated endpoints in `src/routes/api/numbers.ts` so a CRM can run the entire lifecycle over Bearer auth, no dashboard:
+
+- `POST /api/v1/numbers` — create a number + start linking (201, returns the number).
+- `GET /api/v1/numbers/:id/qr` — `{ status, qr, phone }` for polling (QR is a PNG data-URI while connecting, null once linked).
+- `POST /api/v1/numbers/:id/relink` — restart the QR flow for a disconnected number.
+- `DELETE /api/v1/numbers/:id` — unlink (logout + remove).
+
+All schema'd, so they auto-appear in `/docs` and the OpenAPI spec. Verified end-to-end with a token: create→201, QR poll→real data-URI, no-token→401, relink→200, delete→`{ok:true}`, list empty, spec contains all paths, 0 errors. The dashboard's own `/numbers/:id/qr` (session auth) remains for the built-in UI.
+
 ## Deviations from the PRD
 
 None in scope. Session credentials stored as files (see decisions) rather than a literal DB column — a standard, intentional realization of the data-model concept, not a scope change.
