@@ -1,0 +1,75 @@
+<%- include('partials/head', { title: 'Health', active: 'health' }) %>
+<%
+  function healthPill(s){
+    if(s==='healthy') return '<span class="pill on">healthy</span>';
+    if(s==='at_risk') return '<span class="pill warn">at-risk</span>';
+    if(s==='flagged') return '<span class="pill bad">flagged</span>';
+    return '<span class="pill">'+s+'</span>';
+  }
+  function sevPill(s){
+    if(s==='critical') return '<span class="pill bad">critical</span>';
+    if(s==='warning') return '<span class="pill warn">warning</span>';
+    return '<span class="pill">info</span>';
+  }
+%>
+<h1>Health</h1>
+<p class="sub">Live per-number health and the danger-sign timeline. At-risk numbers are auto-slowed; flagged numbers rest in a cool-off and should not be used until it ends.</p>
+
+<div class="card">
+  <% if (numbers.length === 0) { %>
+    <span class="sub">No numbers yet. Link a number to start monitoring its health.</span>
+  <% } else { %>
+    <table>
+      <thead><tr><th>Number</th><th>Health</th><th>Cool-off</th><th>Recent sends (<%= windowMin %>m)</th><th>Failures</th></tr></thead>
+      <tbody>
+        <% numbers.forEach(function(n){ %>
+          <tr>
+            <td>
+              <strong><%= n.label %></strong>
+              <div class="muted-note"><%= n.phone_number ? ('+'+n.phone_number) : 'not linked' %></div>
+            </td>
+            <td><%- healthPill(n.health_status) %></td>
+            <td>
+              <% if (n.cooloff_remaining) { %>
+                <span class="pill bad">cooloff · <%= n.cooloff_remaining %> left</span>
+                <div class="muted-note" style="margin-top:4px;">Resting until <%= n.cooloff_until_human %>.<br/>Use a different number meanwhile.</div>
+              <% } else { %>
+                <span class="muted-note">—</span>
+              <% } %>
+            </td>
+            <td><%= n.snapshot.outbound_total %> total · <%= n.snapshot.sent %> sent</td>
+            <td>
+              <%= n.snapshot.failed %>
+              <% if (n.snapshot.outbound_total > 0) { %>
+                <span class="muted-note">(<%= Math.round(n.snapshot.failure_ratio*100) %>%)</span>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+
+<div class="card">
+  <h2 style="font-size:16px; margin:0 0 12px;">Health events</h2>
+  <% if (events.length === 0) { %>
+    <span class="sub">No health events recorded yet. Danger signs (disconnects, re-login prompts, failure spikes) will appear here.</span>
+  <% } else { %>
+    <table>
+      <thead><tr><th>When</th><th>Number</th><th>Event</th><th>Severity</th><th>Notes</th></tr></thead>
+      <tbody>
+        <% events.forEach(function(e){ %>
+          <tr>
+            <td class="muted-note" style="white-space:nowrap;"><%= e.created_human %></td>
+            <td><%= labels[e.number_id] || e.number_id.slice(0,8) %></td>
+            <td><code><%= e.event_type %></code></td>
+            <td><%- sevPill(e.severity) %></td>
+            <td class="muted-note"><%= e.notes || '—' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+<%- include('partials/foot') %>

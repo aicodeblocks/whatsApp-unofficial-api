@@ -26,15 +26,18 @@ import {
   dailyCountFor,
   ensureWarmupStarted,
   getNumber,
+  inCooloff,
   recordDailySend,
 } from '../db/numbers.js';
 import { buildContent } from './media.js';
 import { whatsappManager, phoneToJid } from './manager.js';
 import { emitMessageStatus } from './webhooks.js';
+import { AT_RISK_SLOWDOWN, evaluateHealth, refreshHealth } from './health.js';
 import {
   dailyLimitFor,
   pacing,
   quietHoldUntil,
+  randomBetween,
   randomSendDelayMs,
   todayStr,
   typingDurationMs,
@@ -83,7 +86,7 @@ async function tick(): Promise<void> {
 
 async function processJob(job: QueuedJob): Promise<void> {
   const now = new Date();
-  const number = getNumber(job.number_id);
+  let number = getNumber(job.number_id);
   const message = getMessage(job.message_id);
 
   // The number or message vanished (e.g. unlinked) — drop the job.
@@ -97,6 +100,15 @@ async function processJob(job: QueuedJob): Promise<void> {
     return holdJob(job, now, pacing.retryBackoffMs, 'queue_paused');
   }
 
+  // Health cool-off: a flagged number rests, held out of use, until the cool-off
+  // window ends. Refresh first so an elapsed cool-off can recover the number.
+  refreshHealth(number.id);
+  number = getNumber(job.number_id)!;
+  if (inCooloff(number, now)) {
+    const until = Date.parse(number.cooloff_until!) + randomBetween(0, 60_000);
+    return deferJob(job.id, new Date(until).toISOString(), 'cooloff');
+  }
+
   // Quiet hours: release at the next allowed window.
   const holdUntil = quietHoldUntil(now);
   if (holdUntil) {
@@ -108,11 +120,14 @@ async function processJob(job: QueuedJob): Promise<void> {
     return holdJob(job, now, pacing.retryBackoffMs, 'number_not_linked');
   }
 
-  // Daily limit / warm-up ceiling reached: defer and re-check later.
+  // Daily limit / warm-up ceiling reached. An at-risk number is auto-cooled
+  // down: its daily ceiling is cut so it only trickles while it recovers.
+  const atRisk = number.health_status === 'at_risk';
   const today = todayStr(now);
-  const limit = dailyLimitFor(number.warmup_started_at, now);
+  let limit = dailyLimitFor(number.warmup_started_at, now);
+  if (atRisk) limit = Math.max(1, Math.floor(limit / AT_RISK_SLOWDOWN));
   if (dailyCountFor(number, today) >= limit) {
-    return holdJob(job, now, 30 * 60_000, 'daily_limit_reached');
+    return holdJob(job, now, 30 * 60_000, atRisk ? 'daily_limit_reached_atrisk' : 'daily_limit_reached');
   }
 
   // Per-number cooldown between consecutive sends.
@@ -121,7 +136,7 @@ async function processJob(job: QueuedJob): Promise<void> {
     return holdJob(job, now, cd - now.getTime(), 'cooldown');
   }
 
-  await releaseSend(job, message.id, number.id);
+  await releaseSend(job, message.id, number.id, atRisk);
 }
 
 /** Reschedule a job a short while out without counting it as a failed attempt. */
@@ -129,13 +144,29 @@ function holdJob(job: QueuedJob, now: Date, ms: number, reason: string): void {
   deferJob(job.id, new Date(now.getTime() + ms).toISOString(), reason);
 }
 
-async function releaseSend(job: QueuedJob, messageId: string, numberId: string): Promise<void> {
+async function releaseSend(
+  job: QueuedJob,
+  messageId: string,
+  numberId: string,
+  atRisk: boolean,
+): Promise<void> {
   setJobState(job.id, 'processing');
   const message = getMessage(messageId)!;
   const contact = getContact(message.contact_id);
   if (!contact) {
     setJobState(job.id, 'failed');
     markMessageFailed(messageId, 'contact_missing');
+    return;
+  }
+
+  // Don't waste a real send on a number that isn't on WhatsApp. The lookup is a
+  // cheap presence query (not a message); a null result means "couldn't tell",
+  // so we let the send proceed rather than block on a transient lookup failure.
+  const onWa = await whatsappManager.existsOnWhatsApp(numberId, contact.phone_number);
+  if (onWa === false) {
+    setJobState(job.id, 'failed');
+    markMessageFailed(messageId, 'not_on_whatsapp');
+    emitMessageStatus(messageId, 'failed');
     return;
   }
 
@@ -163,7 +194,9 @@ async function releaseSend(job: QueuedJob, messageId: string, numberId: string):
     setJobState(job.id, 'done');
 
     // Arm the cooldown so the next send on this number waits a human delay.
-    cooldownUntil.set(numberId, Date.now() + randomSendDelayMs());
+    // An at-risk number waits proportionally longer (auto cool-down).
+    const gap = randomSendDelayMs() * (atRisk ? AT_RISK_SLOWDOWN : 1);
+    cooldownUntil.set(numberId, Date.now() + gap);
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     const attempts = job.attempts + 1;
@@ -171,6 +204,8 @@ async function releaseSend(job: QueuedJob, messageId: string, numberId: string):
       failJob(job.id, reason);
       markMessageFailed(messageId, reason);
       emitMessageStatus(messageId, 'failed');
+      // A finalized failure feeds the health monitor (failure-spike detection).
+      evaluateHealth(numberId);
     } else {
       const backoff = pacing.retryBackoffMs * attempts;
       rescheduleJob(job.id, new Date(Date.now() + backoff).toISOString(), reason);

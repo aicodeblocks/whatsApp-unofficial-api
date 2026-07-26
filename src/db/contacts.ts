@@ -48,3 +48,44 @@ export function resolveContact(phone: string): Contact {
 export function markContacted(id: string): void {
   touchContactedStmt.run({ id, now: new Date().toISOString() });
 }
+
+// --- Milestone 5: consent ---
+
+const setConsentStmt = db.prepare(
+  'UPDATE contacts SET consent_status = @status, consent_source = @source WHERE id = @id',
+);
+
+/** Record a consent decision (opted_in / blocked / unknown) and its source. */
+export function setConsent(id: string, status: ConsentStatus, source: string | null): void {
+  setConsentStmt.run({ id, status, source });
+}
+
+/** Ensure a contact row exists for a phone, then set its consent. Returns it. */
+export function setConsentByPhone(phone: string, status: ConsentStatus, source: string | null): Contact {
+  const contact = resolveContact(phone);
+  setConsent(contact.id, status, source);
+  return getContact(contact.id)!;
+}
+
+/**
+ * List contacts, newest first, optionally filtered by a search string matching
+ * the phone number or display name, and/or a consent status.
+ */
+export function listContacts(search?: string, status?: ConsentStatus, limit = 100): Contact[] {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (search && search.trim()) {
+    where.push('(phone_number LIKE ? OR display_name LIKE ?)');
+    const like = `%${search.trim()}%`;
+    params.push(like, like);
+  }
+  if (status) {
+    where.push('consent_status = ?');
+    params.push(status);
+  }
+  const sql =
+    `SELECT * FROM contacts ${where.length ? 'WHERE ' + where.join(' AND ') : ''}` +
+    ' ORDER BY created_at DESC LIMIT ?';
+  params.push(limit);
+  return db.prepare(sql).all(...params) as Contact[];
+}

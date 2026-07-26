@@ -31,6 +31,14 @@
       <div>
         <strong><%= n.label %></strong>
         <span class="js-badge"><%- badge(n.status) %></span>
+        <% if (n.health_status === 'at_risk') { %><span class="pill warn">at-risk</span><% } %>
+        <% if (n.health_status === 'flagged') { %>
+          <% if (n.cooloff_until && Date.parse(n.cooloff_until) > Date.now()) { %>
+            <span class="pill bad">cooloff</span>
+          <% } else { %>
+            <span class="pill bad">flagged</span>
+          <% } %>
+        <% } %>
         <div class="sub" style="margin-top:2px;">
           id: <code><%= n.id %></code>
           <span class="muted-note">— use this in the API, e.g. <code>GET /api/v1/numbers/<%= n.id %>/qr.png</code></span>

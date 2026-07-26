@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { db } from './index.js';
 
 export type NumberStatus = 'connecting' | 'linked' | 'disconnected' | 'flagged';
+/** Live anti-ban health signal, independent of the connection status. */
+export type HealthStatus = 'healthy' | 'at_risk' | 'flagged';
 
 export interface WhatsAppNumber {
   id: string;
@@ -15,6 +17,10 @@ export interface WhatsAppNumber {
   daily_sent_count: number;
   daily_count_date: string | null;
   queue_paused: number;
+  // Milestone 5 — health monitoring & cool-off.
+  health_status: HealthStatus;
+  /** While in the future, the number is resting (held out of use) after a flag. */
+  cooloff_until: string | null;
 }
 
 const insertStmt = db.prepare(`
@@ -94,4 +100,24 @@ export function recordDailySend(id: string, today: string): number {
 /** How many sends have already gone out for `today` (0 if the day rolled over). */
 export function dailyCountFor(row: WhatsAppNumber, today: string): number {
   return row.daily_count_date === today ? row.daily_sent_count : 0;
+}
+
+// --- Milestone 5: health status & cool-off ---
+
+const setHealthStmt = db.prepare('UPDATE whatsapp_numbers SET health_status = ? WHERE id = ?');
+const setCooloffStmt = db.prepare('UPDATE whatsapp_numbers SET cooloff_until = ? WHERE id = ?');
+
+/** Set the live health signal (healthy | at_risk | flagged). */
+export function setHealthStatus(id: string, status: HealthStatus): void {
+  setHealthStmt.run(status, id);
+}
+
+/** Put the number into (or, with null, out of) a cool-off rest period. */
+export function setCooloffUntil(id: string, untilISO: string | null): void {
+  setCooloffStmt.run(untilISO, id);
+}
+
+/** True if the number is currently resting in a cool-off window. */
+export function inCooloff(row: WhatsAppNumber, now: Date = new Date()): boolean {
+  return !!row.cooloff_until && Date.parse(row.cooloff_until) > now.getTime();
 }

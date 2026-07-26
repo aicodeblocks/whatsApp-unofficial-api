@@ -9,6 +9,8 @@ import { createHmac } from 'node:crypto';
 import { config } from '../config.js';
 import { getContact } from '../db/contacts.js';
 import { getMessage, type Message, type MessageStatus } from '../db/messages.js';
+import type { HealthEvent } from '../db/health.js';
+import type { HealthStatus } from '../db/numbers.js';
 import { isoInTz } from '../time.js';
 import {
   createDelivery,
@@ -90,6 +92,26 @@ function statusPayload(message: Message, status: MessageStatus) {
   };
 }
 
+function healthPayload(
+  numberId: string,
+  event: HealthEvent,
+  status: HealthStatus,
+  extra?: Record<string, unknown>,
+) {
+  return {
+    number_id: numberId,
+    health_status: status,
+    event_type: event.event_type,
+    severity: event.severity,
+    notes: event.notes,
+    snapshot: event.snapshot ? JSON.parse(event.snapshot) : null,
+    occurred_at: event.created_at,
+    occurred_at_local: isoInTz(event.created_at),
+    timezone: config.displayTz,
+    ...extra,
+  };
+}
+
 // --- emission ---
 
 /** Queue an event for delivery if the endpoint is active and subscribed. */
@@ -116,6 +138,16 @@ export function emitMessageStatus(messageId: string, status: MessageStatus): voi
   const message = getMessage(messageId);
   if (!message) return;
   emit('message.status', statusPayload(message, status));
+}
+
+/** Fire a `health.event` webhook for a number's health signal / transition. */
+export function emitHealth(
+  numberId: string,
+  event: HealthEvent,
+  status: HealthStatus,
+  extra?: Record<string, unknown>,
+): void {
+  emit('health.event', healthPayload(numberId, event, status, extra));
 }
 
 // --- delivery worker ---

@@ -17,6 +17,7 @@ import { advanceMessageStatus, getMessageByProviderId, type MessageStatus } from
 import { silentLogger } from './logger.js';
 import { handleInbound } from './inbound.js';
 import { emitMessageStatus } from './webhooks.js';
+import { recordSignal } from './health.js';
 
 // Baileys ships as CommonJS with a default export. Loading it via createRequire
 // avoids ESM/CJS interop pitfalls that differ between tsx and compiled Node ESM.
@@ -196,14 +197,21 @@ async function connect(id: string): Promise<void> {
       }
 
       if (loggedOut) {
-        // WhatsApp invalidated the session — the operator must re-scan.
+        // WhatsApp invalidated the session — the operator must re-scan. This is
+        // a strong danger sign, so feed it to the health monitor.
         st.status = 'disconnected';
         st.qr = undefined;
         setNumberStatus(id, 'disconnected');
         removeSession(id);
         st.sock = undefined;
+        recordSignal(id, 'relogin', 'critical', 'WhatsApp logged the number out — re-scan required.');
       } else {
-        // Transient drop (incl. the normal 515 "restart required" after pairing).
+        // Transient drop. The normal 515 "restart required" right after pairing
+        // is expected and NOT a danger sign; any other unexpected drop is.
+        const restartRequired = statusCode === DisconnectReason.restartRequired;
+        if (!restartRequired) {
+          recordSignal(id, 'disconnect', 'warning', `Unexpected disconnect (code ${statusCode ?? 'unknown'}).`);
+        }
         st.status = 'connecting';
         setNumberStatus(id, 'connecting');
         st.sock = undefined;
@@ -306,6 +314,26 @@ export const whatsappManager = {
   isLinked(id: string): boolean {
     const st = live.get(id);
     return !!st && st.status === 'linked' && !!st.sock;
+  },
+
+  /**
+   * Check whether a phone number is actually registered on WhatsApp, using the
+   * given linked number's socket. Returns true/false, or null if it can't be
+   * determined right now (number not linked, or the lookup failed) — callers
+   * treat null as "don't block the send on this".
+   */
+  async existsOnWhatsApp(id: string, phone: string): Promise<boolean | null> {
+    const sock = live.get(id)?.sock;
+    if (!sock || typeof sock.onWhatsApp !== 'function') return null;
+    try {
+      const jid = phoneToJid(phone);
+      const results = await sock.onWhatsApp(jid);
+      if (!Array.isArray(results) || results.length === 0) return false;
+      const hit = results.find((r: any) => (r?.jid ?? '').startsWith(phone.replace(/[^0-9]/g, '')));
+      return !!(hit?.exists ?? results[0]?.exists);
+    } catch {
+      return null;
+    }
   },
 
   /** Drive the typing indicator ('composing' | 'paused') for the anti-ban engine. */

@@ -109,6 +109,23 @@ export function runMigrations(db: Database): void {
       ON webhook_deliveries(status, next_attempt_at);
     CREATE INDEX IF NOT EXISTS idx_deliveries_recent
       ON webhook_deliveries(created_at);
+
+    -- Milestone 5: the per-number health/feedback timeline. Each notable event
+    -- (disconnect, re-login prompt, delivery drop, failure spike, at-risk,
+    -- cool-off, flagged, recovered) is stored with a snapshot of the surrounding
+    -- activity so you can learn what led up to a flag.
+
+    CREATE TABLE IF NOT EXISTS health_events (
+      id         TEXT PRIMARY KEY,
+      number_id  TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      severity   TEXT NOT NULL DEFAULT 'info',
+      snapshot   TEXT,
+      notes      TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_health_number ON health_events(number_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_health_type ON health_events(number_id, event_type, created_at);
   `);
 
   // Idempotent ALTERs add the per-number anti-ban / warm-up columns introduced
@@ -117,6 +134,14 @@ export function runMigrations(db: Database): void {
   addColumnIfMissing(db, 'whatsapp_numbers', 'daily_sent_count', 'INTEGER NOT NULL DEFAULT 0');
   addColumnIfMissing(db, 'whatsapp_numbers', 'daily_count_date', 'TEXT');
   addColumnIfMissing(db, 'whatsapp_numbers', 'queue_paused', 'INTEGER NOT NULL DEFAULT 0');
+
+  // Milestone 5 — per-number health state and anti-ban cool-off.
+  //   health_status: healthy | at_risk | flagged  (the live health signal).
+  //   cooloff_until: while in the future, the number is held out of use (a
+  //                  computed rest period after a flag) — sending is paused and
+  //                  the dashboard recommends switching to another number.
+  addColumnIfMissing(db, 'whatsapp_numbers', 'health_status', "TEXT NOT NULL DEFAULT 'healthy'");
+  addColumnIfMissing(db, 'whatsapp_numbers', 'cooloff_until', 'TEXT');
 }
 
 /** Add a column only if it isn't already present — keeps migrations rerun-safe. */

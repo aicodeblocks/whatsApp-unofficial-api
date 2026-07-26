@@ -1,0 +1,73 @@
+<%- include('partials/head', { title: 'Contacts', active: 'contacts' }) %>
+<%
+  function consentPill(s){
+    if(s==='opted_in') return '<span class="pill on">opted-in</span>';
+    if(s==='blocked') return '<span class="pill bad">blocked</span>';
+    return '<span class="pill">unknown</span>';
+  }
+%>
+<h1>Contacts</h1>
+<p class="sub">Recipients and their consent. Blocked contacts are never messaged; an inbound “STOP” auto-blocks a contact.</p>
+
+<div class="card">
+  <form method="get" action="/contacts" class="row" style="align-items:flex-end;">
+    <div style="flex:1; min-width:200px;">
+      <label for="search">Search — phone or name</label>
+      <input id="search" name="search" type="text" value="<%= search %>" placeholder="e.g. 15513423891" />
+    </div>
+    <div style="min-width:160px;">
+      <label for="status">Consent</label>
+      <select id="status" name="status" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font-size:14px;">
+        <option value="" <%= status===''?'selected':'' %>>Any</option>
+        <option value="opted_in" <%= status==='opted_in'?'selected':'' %>>Opted-in</option>
+        <option value="unknown" <%= status==='unknown'?'selected':'' %>>Unknown</option>
+        <option value="blocked" <%= status==='blocked'?'selected':'' %>>Blocked</option>
+      </select>
+    </div>
+    <button type="submit">Search</button>
+    <% if (search || status) { %><a class="btn secondary" href="/contacts">Clear</a><% } %>
+  </form>
+</div>
+
+<div class="card">
+  <% if (contacts.length === 0) { %>
+    <span class="sub">No contacts yet. They appear here once you send to or receive from a number.</span>
+  <% } else { %>
+    <table>
+      <thead><tr><th>Phone</th><th>Name</th><th>Consent</th><th>Source</th><th>Last contacted</th><th>Actions</th></tr></thead>
+      <tbody>
+        <% contacts.forEach(function(c){ %>
+          <tr>
+            <td><code>+<%= c.phone_number %></code></td>
+            <td><%= c.display_name || '—' %></td>
+            <td><%- consentPill(c.consent_status) %></td>
+            <td class="muted-note"><%= c.consent_source || '—' %></td>
+            <td class="muted-note"><%= c.last_contacted_human %></td>
+            <td>
+              <div class="row" style="gap:6px;">
+                <% if (c.consent_status !== 'opted_in') { %>
+                  <form method="post" action="/contacts/<%= c.id %>/consent">
+                    <input type="hidden" name="consent_status" value="opted_in" />
+                    <button class="secondary" type="submit">Opt-in</button>
+                  </form>
+                <% } %>
+                <% if (c.consent_status !== 'blocked') { %>
+                  <form method="post" action="/contacts/<%= c.id %>/consent">
+                    <input type="hidden" name="consent_status" value="blocked" />
+                    <button class="danger" type="submit">Block</button>
+                  </form>
+                <% } else { %>
+                  <form method="post" action="/contacts/<%= c.id %>/consent">
+                    <input type="hidden" name="consent_status" value="unknown" />
+                    <button class="secondary" type="submit">Unblock</button>
+                  </form>
+                <% } %>
+              </div>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+<%- include('partials/foot') %>

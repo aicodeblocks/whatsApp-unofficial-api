@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { db } from './index.js';
 
 /** Event types a downstream receiver can subscribe to (v1 set). */
-export const WEBHOOK_EVENTS = ['message.inbound', 'message.status'] as const;
+export const WEBHOOK_EVENTS = ['message.inbound', 'message.status', 'health.event'] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
 export type DeliveryStatus = 'pending' | 'success' | 'failed';

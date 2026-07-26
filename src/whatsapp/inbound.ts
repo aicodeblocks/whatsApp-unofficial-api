@@ -8,7 +8,7 @@ import { mkdirSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { config } from '../config.js';
-import { markContacted, resolveContact } from '../db/contacts.js';
+import { markContacted, resolveContact, setConsent } from '../db/contacts.js';
 import {
   createInboundMessage,
   getMessageByProviderId,
@@ -171,5 +171,10 @@ export async function handleInbound(
   markContacted(contact.id);
 
   const isStop = isStopKeyword(extracted.content);
+  // Consent auto-block (Milestone 5): an inbound STOP-style keyword withdraws
+  // consent — block the contact so no further messages go out to them.
+  if (isStop && contact.consent_status !== 'blocked') {
+    setConsent(contact.id, 'blocked', 'inbound_stop');
+  }
   emitInbound(message, isStop);
 }

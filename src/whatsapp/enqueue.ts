@@ -1,12 +1,18 @@
 /**
  * Turns a send request into a stored Message + a QueuedJob for the worker.
  * Shared by the API and the dashboard test-send form. Does basic validation
- * (recipient format, required fields) but no WhatsApp existence check — that is
- * Milestone 5's job — and no consent enforcement yet.
+ * (recipient format, required fields), enforces consent (blocked recipients are
+ * rejected; unknown recipients follow CONSENT_UNKNOWN_POLICY), and defers the
+ * "is this number actually on WhatsApp?" check to the queue (just before send).
  */
 import { resolveContact } from '../db/contacts.js';
 import { createJob, createMessage, type Message, type MessageType } from '../db/messages.js';
 import { getNumber } from '../db/numbers.js';
+
+/** Policy for recipients whose consent is 'unknown': 'allow' (default) | 'block'. */
+const UNKNOWN_POLICY = (process.env.CONSENT_UNKNOWN_POLICY ?? 'allow').toLowerCase() === 'block'
+  ? 'block'
+  : 'allow';
 
 const MEDIA_TYPES: MessageType[] = ['image', 'document', 'audio', 'video'];
 const ALL_TYPES: MessageType[] = ['text', ...MEDIA_TYPES];
@@ -75,6 +81,23 @@ export function enqueueMessage(input: EnqueueInput): Message {
   }
 
   const contact = resolveContact(phone);
+
+  // Consent guardrails — the top ban trigger is messaging people who don't
+  // want it. Blocked contacts are always rejected; unknown contacts follow the
+  // configured policy.
+  if (contact.consent_status === 'blocked') {
+    throw new EnqueueError(
+      'recipient_blocked',
+      'This recipient is blocked (consent withdrawn). Sending is not allowed.',
+    );
+  }
+  if (contact.consent_status === 'unknown' && UNKNOWN_POLICY === 'block') {
+    throw new EnqueueError(
+      'consent_required',
+      'Recipient consent is unknown and the policy requires opt-in. Mark the contact opted-in first.',
+    );
+  }
+
   const message = createMessage({
     number_id: number.id,
     contact_id: contact.id,
