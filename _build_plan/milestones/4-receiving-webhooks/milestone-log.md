@@ -69,7 +69,18 @@ Automated verification (`scratchpad/verify-m4.mjs`, 16/16 passing) against the c
 
 App-level: host boot is clean, `/api/v1/messages/{id}/media` appears in `/openapi.json`, `/webhooks` redirects unauthenticated users to login, both workers start. The Docker container was rebuilt (`docker compose up -d --build`, data preserved) and the real linked number (`test`, `15513423891`) reconnected as `linked` on M4 code.
 
-**Live WhatsApp round-trip (real inbound from a phone) is the one piece that needs an interactive device** — the automated suite exercises the full store→sign→deliver→retry path with real HTTP, but firing a genuine `message.inbound` requires someone to message the linked number. Recommend confirming with a real send from another phone against a webhook pointed at a reachable receiver (e.g. webhook.site or a local receiver via `host.docker.internal`).
+**Live WhatsApp round-trip — CONFIRMED.** With the running Docker container's webhook endpoint pointed at a local receiver (via `host.docker.internal`), a real phone (`919663291144`) sent to the linked number (`15513423891`):
+- An **image with caption** → one signed `message.inbound` (`from: 919663291144`, `type: image`), and its media downloaded through `GET /api/v1/messages/:id/media` as a valid 1280×590 JPEG (HTTP 200, `image/jpeg`, 55,848 bytes). ✅
+- A **`Stop`** text → one signed `message.inbound` with `is_stop: true` (case-insensitive). ✅
+- HMAC signature verified against the received body. ✅
+
+### Bugs found by the live test and fixed
+The first live send exposed three defects the automated suite (no real socket) couldn't:
+1. **Duplicate inbound** — Baileys emits `messages.upsert` more than once for the same message, so it was stored (and webhooked) twice. Fixed by deduping on `provider_message_id` in `handleInbound` (skip if a message with that id already exists).
+2. **Sender was a LID, not a phone** — WhatsApp addressed the 1:1 chat by `<id>@lid`, so `from` was the opaque LID `176845312012504`. Fixed by resolving the phone-number JID from `key.remoteJidAlt` (Baileys 7 carries the `@s.whatsapp.net` alt) when `remoteJid` is a LID.
+3. **Inbound message fired a bogus `message.status`** — the outbound status listener matched the inbound row by provider id. Fixed by guarding the listener to `direction === 'outbound'`.
+
+A regression test for the dedupe path was added to `verify-m4.mjs` (now **17/17**). All three fixes were re-confirmed by the live re-test above.
 
 ## Anything the next milestone (5 — Health & Consent) needs to know
 

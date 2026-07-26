@@ -131,8 +131,11 @@ async function connect(id: string): Promise<void> {
       const mapped = mapProviderStatus(raw);
       if (!mapped) continue;
       const msg = getMessageByProviderId(pid);
-      // Only fire a status webhook when the status actually advanced.
-      if (msg && advanceMessageStatus(msg.id, mapped)) emitMessageStatus(msg.id, mapped);
+      // Only track status for our own outbound messages (inbound rows can share a
+      // provider id space) and only fire a webhook when the status advanced.
+      if (msg && msg.direction === 'outbound' && advanceMessageStatus(msg.id, mapped)) {
+        emitMessageStatus(msg.id, mapped);
+      }
     }
   };
   sock.ev.on('messages.update', onStatus);
@@ -148,7 +151,11 @@ async function connect(id: string): Promise<void> {
       if (remote.endsWith('@g.us') || remote === 'status@broadcast' || remote.endsWith('@newsletter')) {
         continue;
       }
-      const fromPhone = jidToPhone(remote);
+      // WhatsApp may address a 1:1 chat by LID (<id>@lid) instead of the phone
+      // JID; in that case the real phone-number JID is carried in remoteJidAlt.
+      const phoneJid =
+        remote.endsWith('@s.whatsapp.net') || !raw?.key?.remoteJidAlt ? remote : raw.key.remoteJidAlt;
+      const fromPhone = jidToPhone(phoneJid);
       if (!fromPhone) continue;
       const download: (m: any) => Promise<Buffer> = (m) =>
         downloadMediaMessage(m, 'buffer', {}, { logger: silentLogger, reuploadRequest: sock.updateMediaMessage });

@@ -9,7 +9,11 @@ import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { config } from '../config.js';
 import { markContacted, resolveContact } from '../db/contacts.js';
-import { createInboundMessage, type MessageType } from '../db/messages.js';
+import {
+  createInboundMessage,
+  getMessageByProviderId,
+  type MessageType,
+} from '../db/messages.js';
 import { emitInbound } from './webhooks.js';
 
 const MEDIA_DIR = resolve(config.dataDir, 'media');
@@ -131,6 +135,11 @@ export async function handleInbound(
 ): Promise<void> {
   const extracted = extractMessage(raw?.message);
   if (!extracted) return; // nothing we store for this message type
+
+  // Baileys can emit messages.upsert more than once for the same message.
+  // Dedupe on the provider message id so we store it (and webhook) only once.
+  const providerId: string | null = raw?.key?.id ?? null;
+  if (providerId && getMessageByProviderId(providerId)) return;
 
   const contact = resolveContact(fromPhone);
 
