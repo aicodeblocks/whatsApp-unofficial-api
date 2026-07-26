@@ -1,0 +1,107 @@
+<%- include('partials/head', { title: 'Numbers', active: 'numbers' }) %>
+<%
+  function badge(s){
+    if(s==='linked') return '<span class="pill linked">linked</span>';
+    if(s==='connecting') return '<span class="pill warn">connecting</span>';
+    if(s==='flagged') return '<span class="pill bad">flagged</span>';
+    return '<span class="pill">disconnected</span>';
+  }
+%>
+<h1>Numbers</h1>
+<p class="sub">Link your existing WhatsApp numbers by scanning a QR code, just like WhatsApp Web.</p>
+
+<div class="card">
+  <form method="post" action="/numbers" class="row" style="align-items:flex-end;">
+    <div style="flex:1; min-width:220px;">
+      <label for="label">Add a number — label</label>
+      <input id="label" name="label" type="text" placeholder="e.g. Support line" />
+    </div>
+    <button type="submit">Add &amp; show QR</button>
+  </form>
+  <p class="muted-note" style="margin:12px 0 0;">On your phone: WhatsApp → <strong>Settings → Linked Devices → Link a device</strong>, then scan the QR that appears below.</p>
+</div>
+
+<% if (numbers.length === 0) { %>
+  <div class="card"><span class="sub">No numbers yet. Add one above to get started.</span></div>
+<% } %>
+
+<% numbers.forEach(function(n){ %>
+  <div class="card" data-number="<%= n.id %>">
+    <div class="row" style="justify-content:space-between; align-items:flex-start;">
+      <div>
+        <strong><%= n.label %></strong>
+        <span class="js-badge"><%- badge(n.status) %></span>
+        <div class="sub js-phone" style="margin-top:2px;">
+          <%= n.phone_number ? ('+' + n.phone_number) : 'Not linked yet' %>
+        </div>
+      </div>
+      <div class="row">
+        <% if (n.status === 'disconnected') { %>
+          <form method="post" action="/numbers/<%= n.id %>/relink"><button class="secondary" type="submit">Re-link</button></form>
+        <% } %>
+        <form method="post" action="/numbers/<%= n.id %>/unlink" onsubmit="return confirm('Unlink this number? It will be logged out of WaGuard.');">
+          <button class="danger" type="submit">Unlink</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="js-qrwrap" style="margin-top:14px; <%= n.status==='connecting' ? '' : 'display:none;' %>">
+      <div class="qrbox">
+        <img class="js-qr" alt="QR code" src="<%= n.qr || '' %>" style="<%= n.qr ? '' : 'display:none;' %>" />
+        <div class="js-qr-wait muted-note" style="<%= n.qr ? 'display:none;' : '' %>">Generating QR…</div>
+      </div>
+      <p class="muted-note" style="margin:8px 0 0;">Scan within ~20s. A fresh code appears automatically if it expires.</p>
+    </div>
+  </div>
+<% }) %>
+
+<script>
+(function(){
+  var cards = document.querySelectorAll('[data-number]');
+  cards.forEach(function(card){
+    var id = card.getAttribute('data-number');
+    var badgeEl = card.querySelector('.js-badge');
+    var phoneEl = card.querySelector('.js-phone');
+    var qrWrap  = card.querySelector('.js-qrwrap');
+    var qrImg   = card.querySelector('.js-qr');
+    var qrWait  = card.querySelector('.js-qr-wait');
+    var timer = null;
+
+    function pillHtml(s){
+      if(s==='linked') return '<span class="pill linked">linked</span>';
+      if(s==='connecting') return '<span class="pill warn">connecting</span>';
+      if(s==='flagged') return '<span class="pill bad">flagged</span>';
+      return '<span class="pill">disconnected</span>';
+    }
+
+    function poll(){
+      fetch('/numbers/'+id+'/qr', { headers:{'Accept':'application/json'} })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(d){
+          if(!d) return;
+          badgeEl.innerHTML = pillHtml(d.status);
+          if(d.status === 'connecting'){
+            qrWrap.style.display = '';
+            if(d.qr){ qrImg.src = d.qr; qrImg.style.display=''; qrWait.style.display='none'; }
+            else { qrImg.style.display='none'; qrWait.style.display=''; }
+          } else if(d.status === 'linked'){
+            clearInterval(timer);
+            if(d.phone) phoneEl.textContent = '+'+d.phone;
+            qrWrap.style.display='none';
+            setTimeout(function(){ location.reload(); }, 600);
+          } else { // disconnected / flagged
+            clearInterval(timer);
+            qrWrap.style.display='none';
+            setTimeout(function(){ location.reload(); }, 600);
+          }
+        })
+        .catch(function(){});
+    }
+
+    // Poll only while this number still needs to link.
+    var initial = badgeEl.textContent.trim();
+    if(initial === 'connecting'){ timer = setInterval(poll, 2000); poll(); }
+  });
+})();
+</script>
+<%- include('partials/foot') %>

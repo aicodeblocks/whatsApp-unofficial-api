@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.json && cp -r src/views dist/views",
+    "build": "tsc -p tsconfig.json && rm -rf dist/views && cp -R src/views dist/views",
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -21,15 +21,18 @@
     "@fastify/swagger": "^9.4.0",
     "@fastify/swagger-ui": "^5.2.0",
     "@fastify/view": "^10.0.1",
+    "@whiskeysockets/baileys": "^7.0.0-rc13",
     "better-sqlite3": "^11.8.1",
     "ejs": "^3.1.10",
     "fastify": "^5.2.1",
-    "fastify-plugin": "^5.0.1"
+    "fastify-plugin": "^5.0.1",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
     "@types/ejs": "^3.1.5",
     "@types/node": "^22.10.5",
+    "@types/qrcode": "^1.5.6",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   }

@@ -31,7 +31,10 @@ async function swaggerPlugin(app: FastifyInstance): Promise<void> {
         },
       },
       security: [{ bearerAuth: [] }],
-      tags: [{ name: 'system', description: 'Service status and health.' }],
+      tags: [
+        { name: 'system', description: 'Service status and health.' },
+        { name: 'numbers', description: 'Linked WhatsApp numbers and their connection status.' },
+      ],
     },
   });
 

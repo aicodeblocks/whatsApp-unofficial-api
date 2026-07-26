@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { isFirstRun, setAdminPassword, verifyAdminPassword } from '../../db/settings.js';
 import { createToken, listTokens, revokeToken } from '../../db/tokens.js';
+import { whatsappManager } from '../../whatsapp/manager.js';
 
 interface PasswordBody {
   password?: string;
@@ -57,7 +58,13 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
 
   // ---- Home overview -------------------------------------------------------
   app.get('/', { preHandler: app.requireAdmin }, async (_req, reply) => {
-    return reply.view('home', { active: 'home', tokenCount: listTokens().filter((t) => t.active).length });
+    const numbers = whatsappManager.list();
+    return reply.view('home', {
+      active: 'home',
+      tokenCount: listTokens().filter((t) => t.active).length,
+      numberCount: numbers.length,
+      linkedCount: numbers.filter((n) => n.status === 'linked').length,
+    });
   });
 
   // ---- API tokens ----------------------------------------------------------

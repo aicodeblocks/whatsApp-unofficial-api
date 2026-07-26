@@ -32,7 +32,12 @@
     th{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
     code{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; }
     .pill{ font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
-    .pill.on{ color:var(--accent); border-color:var(--accent); }
+    .pill.on,.pill.linked{ color:var(--accent); border-color:var(--accent); }
+    .pill.warn{ color:#b45309; border-color:#b45309; }
+    .pill.bad{ color:var(--danger); border-color:var(--danger); }
+    .qrbox{ background:#fff; padding:10px; border-radius:10px; display:inline-block; border:1px solid var(--line); }
+    .qrbox img{ display:block; width:220px; height:220px; }
+    .muted-note{ font-size:13px; color:var(--muted); }
     .alert{ padding:10px 12px; border-radius:8px; font-size:14px; margin-bottom:12px; border:1px solid var(--line); }
     .alert.error{ color:var(--danger); border-color:var(--danger); }
     .alert.ok{ color:var(--accent); border-color:var(--accent); }
@@ -50,7 +55,7 @@
       <div class="brand">WaGuard <small>self-hosted WhatsApp API</small></div>
       <nav class="nav">
         <a href="/" class="<%= active==='home'?'active':'' %>">Overview</a>
-        <a href="#" class="soon">Numbers <span class="tag">soon</span></a>
+        <a href="/numbers" class="<%= active==='numbers'?'active':'' %>">Numbers</a>
         <a href="#" class="soon">Send &amp; Queue <span class="tag">soon</span></a>
         <a href="#" class="soon">Contacts <span class="tag">soon</span></a>
         <a href="#" class="soon">Webhooks <span class="tag">soon</span></a>

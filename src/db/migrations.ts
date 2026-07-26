@@ -21,5 +21,14 @@ export function runMigrations(db: Database): void {
       last_used_at TEXT,
       created_at   TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS whatsapp_numbers (
+      id           TEXT PRIMARY KEY,
+      label        TEXT NOT NULL,
+      phone_number TEXT,
+      status       TEXT NOT NULL DEFAULT 'connecting',
+      created_at   TEXT NOT NULL,
+      linked_at    TEXT
+    );
   `);
 }
