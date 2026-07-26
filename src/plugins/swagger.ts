@@ -38,6 +38,10 @@ async function swaggerPlugin(app: FastifyInstance): Promise<void> {
           description: 'Link and manage WhatsApp numbers over the API. Bearer-token API — this is what downstream systems (e.g. a CRM) call.',
         },
         {
+          name: 'messages',
+          description: 'Send messages and track their status. Every send is paced by the anti-ban queue. Bearer-token API.',
+        },
+        {
           name: 'dashboard (internal)',
           description:
             'The built-in admin web UI (HTML pages, admin session-cookie auth). These are NOT for API clients — a downstream app authenticates with a Bearer token and uses the API groups above. Listed here for reference only.',

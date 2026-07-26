@@ -231,3 +231,20 @@ export function failJob(id: string, err: string): void {
 export function resetStuckJobs(): void {
   resetProcessingStmt.run(new Date().toISOString());
 }
+
+const retryFailedStmt = db.prepare(`
+  UPDATE queued_jobs
+     SET state = 'waiting', scheduled_send_at = @now, last_error = NULL, updated_at = @now
+   WHERE number_id = @number_id AND state = 'failed'
+`);
+const requeueFailedMessagesStmt = db.prepare(`
+  UPDATE messages SET status = 'queued', failure_reason = NULL, updated_at = @now
+   WHERE number_id = @number_id AND status = 'failed'
+`);
+
+/** Requeue every failed job/message for a number (manual retry from the dashboard). */
+export function retryFailedForNumber(numberId: string): void {
+  const now = new Date().toISOString();
+  retryFailedStmt.run({ number_id: numberId, now });
+  requeueFailedMessagesStmt.run({ number_id: numberId, now });
+}

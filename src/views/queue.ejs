@@ -1,0 +1,140 @@
+<%- include('partials/head', { title: 'Send & Queue', active: 'queue' }) %>
+<%
+  function statusPill(s){
+    if(s==='read')      return '<span class="pill linked">read</span>';
+    if(s==='delivered') return '<span class="pill linked">delivered</span>';
+    if(s==='sent')      return '<span class="pill warn">sent</span>';
+    if(s==='failed')    return '<span class="pill bad">failed</span>';
+    return '<span class="pill">queued</span>';
+  }
+  function esc(v){ return String(v==null?'':v).replace(/[<>&]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;'}[c];}); }
+  var linked = numbers.filter(function(n){ return n.status==='linked'; });
+%>
+<h1>Send &amp; Queue</h1>
+<p class="sub">Send a message through the anti-ban queue and watch it pace out like a human sent it.</p>
+
+<% if (flash) { %>
+  <div class="alert <%= flash.ok ? 'ok' : 'error' %>"><%= flash.text %></div>
+<% } %>
+
+<div class="card">
+  <h3 style="margin:0 0 4px;">Send a test message</h3>
+  <% if (linked.length === 0) { %>
+    <p class="muted-note">No linked numbers yet. Link one on the <a href="/numbers">Numbers</a> page first.</p>
+  <% } else { %>
+  <form method="post" action="/queue/send">
+    <div class="row" style="align-items:flex-end;">
+      <div style="flex:1; min-width:200px;">
+        <label for="number_id">From number</label>
+        <select id="number_id" name="number_id" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink);">
+          <% linked.forEach(function(n){ %>
+            <option value="<%= n.id %>"><%= esc(n.label) %><%= n.phone_number ? ' (+'+esc(n.phone_number)+')' : '' %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div style="flex:1; min-width:180px;">
+        <label for="to">To (international digits)</label>
+        <input id="to" name="to" type="text" placeholder="15551234567" />
+      </div>
+      <div style="min-width:130px;">
+        <label for="type">Type</label>
+        <select id="type" name="type" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink);">
+          <option value="text">text</option>
+          <option value="image">image (URL)</option>
+          <option value="document">document (URL)</option>
+          <option value="audio">audio (URL)</option>
+          <option value="video">video (URL)</option>
+        </select>
+      </div>
+    </div>
+    <label for="content">Text (for type=text)</label>
+    <input id="content" name="content" type="text" placeholder="Hello from WaGuard 👋" />
+    <div class="row" style="align-items:flex-end;">
+      <div style="flex:1; min-width:220px;">
+        <label for="media_url">Media URL (for media types)</label>
+        <input id="media_url" name="media_url" type="text" placeholder="https://example.com/image.jpg" />
+      </div>
+      <div style="flex:1; min-width:160px;">
+        <label for="caption">Caption (media)</label>
+        <input id="caption" name="caption" type="text" placeholder="optional" />
+      </div>
+      <div style="min-width:200px;">
+        <label for="schedule_at">Schedule (optional)</label>
+        <input id="schedule_at" name="schedule_at" type="datetime-local" style="width:100%; padding:9px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink);" />
+      </div>
+    </div>
+    <div style="margin-top:14px;"><button type="submit">Queue message</button></div>
+    <p class="muted-note" style="margin:10px 0 0;">Uploaded-file sends use the API: <code>POST /api/v1/messages/upload</code> (multipart). Schedule times are read in the server’s timezone.</p>
+  </form>
+  <% } %>
+</div>
+
+<h3 style="margin:22px 0 8px;">Queues</h3>
+<% if (numbers.length === 0) { %>
+  <div class="card"><span class="sub">No numbers yet.</span></div>
+<% } %>
+<% numbers.forEach(function(n){ %>
+  <div class="card">
+    <div class="row" style="justify-content:space-between; align-items:flex-start;">
+      <div>
+        <strong><%= esc(n.label) %></strong>
+        <% if (n.phone_number) { %><code>+<%= esc(n.phone_number) %></code><% } %>
+        <%- n.status==='linked' ? '<span class="pill linked">linked</span>' : '<span class="pill">'+esc(n.status)+'</span>' %>
+        <% if (n.queue_paused) { %><span class="pill warn">paused</span><% } %>
+      </div>
+      <div class="row" style="gap:8px;">
+        <% if (n.queue_paused) { %>
+          <form method="post" action="/queue/<%= n.id %>/resume"><button type="submit" class="secondary">Resume</button></form>
+        <% } else { %>
+          <form method="post" action="/queue/<%= n.id %>/pause"><button type="submit" class="secondary">Pause</button></form>
+        <% } %>
+        <% if (n.counts.failed > 0) { %>
+          <form method="post" action="/queue/<%= n.id %>/retry"><button type="submit" class="secondary">Retry failed</button></form>
+        <% } %>
+      </div>
+    </div>
+    <div class="row" style="gap:18px; margin-top:12px;">
+      <span class="muted-note">Waiting: <strong><%= n.counts.waiting %></strong></span>
+      <span class="muted-note">Processing: <strong><%= n.counts.processing %></strong></span>
+      <span class="muted-note">Sent: <strong><%= n.counts.done %></strong></span>
+      <span class="muted-note">Failed: <strong style="<%= n.counts.failed>0?'color:var(--danger)':'' %>"><%= n.counts.failed %></strong></span>
+      <span class="muted-note">Daily limit: <strong><%= n.daily_sent_count %>/<%= n.dailyLimit %></strong></span>
+    </div>
+  </div>
+<% }); %>
+
+<h3 style="margin:22px 0 8px;">Recent messages</h3>
+<div class="card" id="recent">
+  <table>
+    <thead><tr><th>To</th><th>Type</th><th>Preview</th><th>Status</th><th>Updated</th></tr></thead>
+    <tbody>
+      <% if (messages.length === 0) { %>
+        <tr><td colspan="5" class="sub">No messages yet.</td></tr>
+      <% } %>
+      <% messages.forEach(function(m){ %>
+        <tr data-id="<%= m.id %>">
+          <td><code><%= esc(m.to) %></code></td>
+          <td><%= esc(m.type) %></td>
+          <td><%= esc((m.content || m.caption || m.media_url || '').slice(0,40)) %></td>
+          <td class="st"><%- statusPill(m.status) %></td>
+          <td class="muted-note"><%= esc((m.updated_at||'').replace('T',' ').slice(0,19)) %></td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+
+<script>
+// Light auto-refresh so queued → sent → delivered → read updates without a manual reload.
+setInterval(function(){
+  fetch(location.pathname, { headers: { 'X-Requested-With': 'fetch' } })
+    .then(function(r){ return r.text(); })
+    .then(function(html){
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var fresh = doc.getElementById('recent');
+      var cur = document.getElementById('recent');
+      if (fresh && cur) cur.innerHTML = fresh.innerHTML;
+    }).catch(function(){});
+}, 4000);
+</script>
+<%- include('partials/foot') %>
