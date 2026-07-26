@@ -56,7 +56,8 @@ Link your own WhatsApp number(s) by scanning a QR code (exactly like WhatsApp We
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `POST` | `/api/v1/numbers` | Create a number and start the QR linking flow. Body: `{ "label": "..." }`. Returns the number with its `id`. |
-| `GET` | `/api/v1/numbers/{id}/qr` | **The QR endpoint.** Returns `{ status, qr, phone }`. `qr` is a PNG **data-URI** to display for scanning while `status` is `connecting`; it becomes `null` once `linked`. |
+| `GET` | `/api/v1/numbers/{id}/qr` | **The QR endpoint (JSON).** Returns `{ status, qr, phone }`. `qr` is a PNG **data-URI** to embed/display while `status` is `connecting`; becomes `null` once `linked`. Best for programmatic use. |
+| `GET` | `/api/v1/numbers/{id}/qr.png` | **The QR as a scannable image.** Same QR served as raw `image/png` you can view/scan directly. Auth via Bearer header **or** `?token=<token>` query so the URL opens in a browser tab. |
 | `GET` | `/api/v1/numbers` | List all numbers and their status. |
 | `GET` | `/api/v1/numbers/{id}` | Get one number and its status. |
 | `POST` | `/api/v1/numbers/{id}/relink` | Restart the QR flow for a disconnected number. |
@@ -93,6 +94,13 @@ The `qr` field **is** the QR image. Display it directly — no image processing 
 ```html
 <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEU..." />
 ```
+
+**Want to just see/scan the QR without writing any HTML?** Use the image variant, which returns a raw PNG:
+
+- In **Swagger `/docs`**: open `GET /api/v1/numbers/{id}/qr.png`, click **Authorize** (paste a token), **Try it out**, put in your real `id`, **Execute** — the scannable QR renders right in the response.
+- Or open it **directly in a browser tab** (handy for scanning on screen):
+  `http://localhost:3000/api/v1/numbers/<id>/qr.png?token=<token>`
+  (Note: a token in a URL can end up in logs — fine for local linking, prefer the header in production.)
 
 The number's owner opens **WhatsApp → Settings → Linked Devices → Link a device** and scans it.
 

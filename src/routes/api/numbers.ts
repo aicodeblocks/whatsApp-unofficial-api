@@ -1,4 +1,5 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { verifyToken } from '../../db/tokens.js';
 import { whatsappManager } from '../../whatsapp/manager.js';
 
 const numberSchema = {
@@ -118,6 +119,46 @@ export async function numberApiRoutes(app: FastifyInstance): Promise<void> {
       const n = whatsappManager.get(req.params.id);
       if (!n) return reply.code(404).send({ error: 'not_found' });
       return { status: n.status, qr: n.qr, phone: n.phone_number };
+    },
+  );
+
+  // The QR as an actual scannable PNG image (not JSON). Useful for viewing/
+  // scanning directly in a browser or in the Swagger "Try it out" response.
+  // Accepts the token via the Authorization header OR a ?token= query param so
+  // the image URL can be opened directly in a browser tab (note: a token in a
+  // URL may be logged — prefer the header where you can).
+  app.get<{ Params: { id: string }; Querystring: { token?: string } }>(
+    '/api/v1/numbers/:id/qr.png',
+    {
+      preHandler: async (req: FastifyRequest<{ Querystring: { token?: string } }>, reply: FastifyReply) => {
+        const header = req.headers.authorization ?? '';
+        const raw = (/^Bearer\s+(.+)$/i.exec(header)?.[1] ?? req.query.token ?? '').trim();
+        if (!raw || !verifyToken(raw)) {
+          reply.code(401).send({ error: 'unauthorized', message: 'Provide a valid token via Bearer header or ?token=.' });
+        }
+      },
+      schema: {
+        tags: ['numbers'],
+        summary: 'Get a number’s QR as a scannable PNG image',
+        description:
+          'Returns the QR as an `image/png` you can view and scan directly (in a browser or the Swagger response), while status is "connecting". Returns 404 once linked (no QR) or if the id is unknown. Auth via Bearer header or ?token= query param.',
+        security: [{ bearerAuth: [] }],
+        params: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+        querystring: { type: 'object', properties: { token: { type: 'string' } } },
+        produces: ['image/png'],
+        response: {
+          404: { type: 'object', properties: { error: { type: 'string' } } },
+        },
+      },
+    },
+    async (req, reply) => {
+      const n = whatsappManager.get(req.params.id);
+      if (!n) return reply.code(404).send({ error: 'not_found' });
+      if (!n.qr) return reply.code(404).send({ error: 'no_qr', message: 'No QR available (number is not awaiting a scan).' });
+      // n.qr is a data-URI (data:image/png;base64,....) — decode to raw PNG bytes.
+      const base64 = n.qr.split(',')[1] ?? '';
+      const png = Buffer.from(base64, 'base64');
+      return reply.header('Cache-Control', 'no-store').type('image/png').send(png);
     },
   );
 
