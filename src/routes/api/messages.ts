@@ -221,26 +221,31 @@ export async function messageApiRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  // Recent messages, optionally filtered by number.
-  app.get<{ Querystring: { number_id?: string; limit?: number } }>(
+  // Recent messages, optionally filtered by number and/or direction.
+  app.get<{ Querystring: { number_id?: string; direction?: 'inbound' | 'outbound'; limit?: number } }>(
     '/api/v1/messages',
     {
       preHandler: app.requireApiToken,
       schema: {
         tags: ['messages'],
         summary: 'List recent messages',
-        description: 'Returns recent outbound messages, most recent first. Filter with number_id.',
+        description:
+          'Returns recent messages (both sent and received), most recent first. Filter with number_id (the linked number’s id, not a phone) and/or direction=inbound|outbound. Note: receiving is primarily delivered via webhooks; this is a convenience view of stored messages.',
         security: [{ bearerAuth: [] }],
         querystring: {
           type: 'object',
-          properties: { number_id: { type: 'string' }, limit: { type: 'integer', minimum: 1, maximum: 200 } },
+          properties: {
+            number_id: { type: 'string', description: 'Id of a linked number (not a phone number).' },
+            direction: { type: 'string', enum: ['inbound', 'outbound'], description: 'Only received (inbound) or only sent (outbound) messages.' },
+            limit: { type: 'integer', minimum: 1, maximum: 200 },
+          },
         },
         response: { 200: { type: 'object', properties: { messages: { type: 'array', items: messageSchema } } } },
       },
     },
     async (req) => {
       const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
-      const rows = listMessages(limit, req.query.number_id);
+      const rows = listMessages(limit, req.query.number_id, req.query.direction);
       return { messages: rows.map(({ media_path: _mp, ...r }) => r) };
     },
   );

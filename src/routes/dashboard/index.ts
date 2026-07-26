@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { config } from '../../config.js';
 import { isFirstRun, setAdminPassword, verifyAdminPassword } from '../../db/settings.js';
 import { createToken, listTokens, revokeToken } from '../../db/tokens.js';
 import { whatsappManager } from '../../whatsapp/manager.js';
@@ -12,6 +13,17 @@ interface PasswordBody {
 const dash = (summary: string, description: string) => ({
   schema: { tags: ['dashboard (internal)'], summary, description, security: [] as never[] },
 });
+
+/**
+ * The login image URL with a per-request cache-buster appended, so services
+ * like picsum.photos return a fresh image on every page load instead of the
+ * browser reusing a cached one. Empty config → no image.
+ */
+function loginImageUrl(): string | null {
+  const base = config.loginImageUrl.trim();
+  if (!base) return null;
+  return base + (base.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+}
 
 /**
  * Server-rendered admin dashboard. Intentionally minimal and dependency-light.
@@ -43,14 +55,14 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
   app.get('/login', dash('Login page', 'HTML admin login form.'), async (req, reply) => {
     if (isFirstRun()) return reply.redirect('/setup');
     if (req.session.admin) return reply.redirect('/');
-    return reply.view('login', { error: null });
+    return reply.view('login', { error: null, loginImage: loginImageUrl() });
   });
 
   app.post<{ Body: PasswordBody }>('/login', dash('Submit login', 'Verifies the admin password and starts a session. Body: password (form-encoded).'), async (req, reply) => {
     if (isFirstRun()) return reply.redirect('/setup');
     const { password } = req.body;
     if (!password || !verifyAdminPassword(password)) {
-      return reply.view('login', { error: 'Incorrect password.' });
+      return reply.view('login', { error: 'Incorrect password.', loginImage: loginImageUrl() });
     }
     req.session.admin = true;
     return reply.redirect('/');

@@ -46,10 +46,6 @@ const insertMessageStmt = db.prepare(`
 `);
 const getMessageStmt = db.prepare('SELECT * FROM messages WHERE id = ?');
 const getByProviderStmt = db.prepare('SELECT * FROM messages WHERE provider_message_id = ?');
-const listMessagesStmt = db.prepare('SELECT * FROM messages ORDER BY created_at DESC LIMIT ?');
-const listMessagesByNumberStmt = db.prepare(
-  'SELECT * FROM messages WHERE number_id = ? ORDER BY created_at DESC LIMIT ?',
-);
 const setStatusStmt = db.prepare(
   'UPDATE messages SET status = @status, updated_at = @now WHERE id = @id',
 );
@@ -132,10 +128,27 @@ export function getMessageByProviderId(pid: string): Message | undefined {
   return getByProviderStmt.get(pid) as Message | undefined;
 }
 
-export function listMessages(limit = 50, numberId?: string): Message[] {
-  return (
-    numberId ? listMessagesByNumberStmt.all(numberId, limit) : listMessagesStmt.all(limit)
-  ) as Message[];
+/** Recent messages, newest first; optionally filter by number and/or direction. */
+export function listMessages(
+  limit = 50,
+  numberId?: string,
+  direction?: 'inbound' | 'outbound',
+): Message[] {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (numberId) {
+    where.push('number_id = ?');
+    params.push(numberId);
+  }
+  if (direction) {
+    where.push('direction = ?');
+    params.push(direction);
+  }
+  const sql =
+    `SELECT * FROM messages ${where.length ? 'WHERE ' + where.join(' AND ') : ''}` +
+    ' ORDER BY created_at DESC LIMIT ?';
+  params.push(limit);
+  return db.prepare(sql).all(...params) as Message[];
 }
 
 export function markMessageSent(id: string, providerId: string | null): void {

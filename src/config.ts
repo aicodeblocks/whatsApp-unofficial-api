@@ -49,6 +49,12 @@ export const config = {
   /** Marketing-friendly name surfaced in the dashboard and docs. */
   appName: 'WaGuard',
   /**
+   * Decorative image shown on the login page. Defaults to a random-photo
+   * service (a fresh image each page load). Set LOGIN_IMAGE_URL to your own,
+   * or to an empty string to hide it.
+   */
+  loginImageUrl: process.env.LOGIN_IMAGE_URL ?? 'https://picsum.photos/400/300.jpg',
+  /**
    * Public base URL of this service, used to build absolute media-download URLs
    * inside webhook payloads (e.g. https://wa.example.com). Falls back to
    * http://<host>:<port>, which is only reachable if the receiver shares the

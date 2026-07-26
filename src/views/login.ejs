@@ -1,5 +1,9 @@
 <%- include('partials/head', { title: 'Log in', chrome: 'auth' }) %>
 <div class="card">
+  <% if (typeof loginImage !== 'undefined' && loginImage) { %>
+    <img src="<%= loginImage %>" alt="" width="400" height="300"
+         style="display:block; width:100%; height:auto; border-radius:10px; margin-bottom:18px; border:1px solid var(--line);" />
+  <% } %>
   <h1>WaGuard</h1>
   <p class="sub">Log in to the admin dashboard.</p>
   <% if (error) { %><div class="alert error"><%= error %></div><% } %>
