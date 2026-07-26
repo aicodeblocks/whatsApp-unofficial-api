@@ -31,6 +31,10 @@
       <div>
         <strong><%= n.label %></strong>
         <span class="js-badge"><%- badge(n.status) %></span>
+        <div class="sub" style="margin-top:2px;">
+          id: <code><%= n.id %></code>
+          <span class="muted-note">— use this in the API, e.g. <code>GET /api/v1/numbers/<%= n.id %>/qr.png</code></span>
+        </div>
         <div class="sub js-phone" style="margin-top:2px;">
           <%= n.phone_number ? ('+' + n.phone_number) : 'Not linked yet' %>
         </div>
