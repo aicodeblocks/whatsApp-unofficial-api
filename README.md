@@ -15,7 +15,7 @@ docker compose up --build
 
 Then open <http://localhost:3000>. On first launch you'll create an admin password.
 
-All persistent data (SQLite database, session secret, and — in later milestones — WhatsApp sessions and media) lives in `./data`, so it survives restarts and rebuilds.
+All persistent data (SQLite database, session secret, WhatsApp sessions, and downloaded media) lives in `./data`, so it survives restarts and rebuilds.
 
 ## Run without Docker (fallback)
 
@@ -38,7 +38,7 @@ Authorization: Bearer <token>
 
 Create a token in the dashboard (**API Tokens → Create token**). The value is shown once — copy it. Tokens can be revoked anytime. The admin dashboard pages (`/login`, `/numbers`, …) use a separate session-cookie login and are the built-in UI only; a downstream app never calls them.
 
-Explore and try everything at **`/docs`** (grouped as **system**, **numbers**, and **dashboard (internal)**). Click **Authorize**, paste a token, then use **Try it out** on any endpoint. The machine-readable spec is at **`/openapi.json`**.
+Explore and try everything at **`/docs`** (grouped as **system**, **numbers**, **messages**, **contacts**, **health**, and **dashboard (internal)**). Click **Authorize**, paste a token, then use **Try it out** on any endpoint — the token is remembered across page reloads. The machine-readable spec at **`/openapi.json`** covers every endpoint **and** the webhook payload shapes.
 
 ## What's here (Milestone 1) — Foundation & Access
 
@@ -184,4 +184,81 @@ Then poll `GET /api/v1/messages/{id}` to watch the status advance. The dashboard
 
 Safe defaults ship out of the box. Override in `.env` if needed: `SEND_DELAY_MIN_MS`/`SEND_DELAY_MAX_MS` (inter-send delay), `TYPING_BASE_MS`/`TYPING_PER_CHAR_MS`/`TYPING_MAX_MS` (typing sim), `DAILY_LIMIT_MAX`, `WARMUP_RAMP` (comma list, e.g. `20,40,80,120,160,200`), `QUIET_HOURS_ENABLED`/`QUIET_START_HOUR`/`QUIET_END_HOUR`/`QUIET_TZ`, `SEND_MAX_ATTEMPTS`, `SEND_RETRY_BACKOFF_MS`, `QUEUE_TICK_MS`.
 
-> Receiving inbound replies and status webhooks arrive in Milestone 4 — WaGuard is send-only until then.
+## What's here (Milestone 4) — Receiving & Webhooks
+
+WaGuard now **receives**: messages sent to a linked number are captured and stored, incoming media is downloaded, and everything is **pushed to your systems via signed webhooks** — along with delivery/read status updates for your outbound messages. Receiving is webhook-**push** (there's no polling API for history; stored messages are still listable).
+
+### Webhook events
+
+Configure a single endpoint on the dashboard **Webhooks** page: set the URL, choose which events to receive, toggle it active, and see a live log of recent deliveries (status, HTTP code, attempts, errors). A strong signing secret is generated for you (reveal / regenerate), and a **Send test event** button verifies your receiver.
+
+| Event | Fires when |
+| --- | --- |
+| `message.inbound` | A message is received by a linked number (text/image/video/audio/document). |
+| `message.status` | An outbound message advances: `sent` → `delivered` → `read`, or `failed`. |
+
+Every webhook is an HTTP `POST` with a JSON envelope `{ event, timestamp, data }`, and these headers:
+
+```
+X-WaGuard-Event:     message.inbound
+X-WaGuard-Delivery:  <delivery id>
+X-WaGuard-Timestamp: <ISO-8601>
+X-WaGuard-Signature: sha256=<hmac>
+```
+
+**Verify authenticity** by computing `HMAC-SHA256(secret, raw_request_body)` and comparing it (hex) to the `X-WaGuard-Signature` value after the `sha256=` prefix. If your endpoint is down, deliveries are **retried automatically** with exponential backoff (nothing is silently lost).
+
+Inbound `message.inbound` payloads include a `media_url` for any attached media — an authenticated download link (see below) — and `is_stop: true` when the message body is a STOP-style opt-out (which auto-blocks the contact in Milestone 5).
+
+### New API endpoints
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/messages/{id}/media` | Download a message's stored media (inbound or uploaded). Bearer token required. Inbound webhook `media_url`s point here. |
+| `GET` | `/api/v1/messages?direction=inbound\|outbound` | The messages list now filters by `direction` (stacks with `number_id`) — a convenience view of received vs sent. |
+
+> Set **`PUBLIC_BASE_URL`** in production (e.g. `https://wa.example.com`) so the `media_url` in webhook payloads is reachable by your receiver. Webhook delivery is tunable via `WEBHOOK_TIMEOUT_MS`, `WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_RETRY_BACKOFF_MS`, `WEBHOOK_MAX_BACKOFF_MS`, `WEBHOOK_TICK_MS`.
+
+## What's here (Milestone 5) — Health & Consent
+
+Completes the anti-ban story with **live health monitoring** and **consent guardrails**, plus API-docs polish.
+
+### Health monitoring & auto cool-down
+
+Every number carries a live health signal — **healthy / at-risk / flagged** — shown on the new dashboard **Health** page (with a per-number activity snapshot and a danger-sign event timeline). WaGuard watches for trouble on its own: unexpected disconnects, WhatsApp re-login (logged-out) prompts, and spikes in failed/undelivered messages. When a number trends bad it reacts automatically:
+
+- **At-risk** → the anti-ban engine **slows it down** (longer gaps + a reduced daily ceiling).
+- **Flagged** → the number enters a labelled **cool-off**: it's held out of use for a computed rest period that **escalates with each repeat offence**, and the dashboard recommends routing sends through a different number until it recovers. It recovers automatically once the cool-off passes and signals clear.
+
+Health transitions are also pushed to your webhook as a **`health.event`** (subscribe on the Webhooks page).
+
+### Consent guardrails
+
+Each contact has a consent status — **opted-in / unknown / blocked**. **Sends to a blocked contact are refused** (`recipient_blocked`); unknown contacts follow a configurable policy (`CONSENT_UNKNOWN_POLICY`, default `allow`). When someone replies **STOP** (or UNSUBSCRIBE/CANCEL/…) to your number, that contact is **auto-blocked** and won't be messaged again. And right before a real send, WaGuard checks the recipient is actually on WhatsApp — if not, the message is failed with `not_on_whatsapp` instead of wasting a send. Browse and manage all of this on the searchable dashboard **Contacts** page (opt-in / block / unblock).
+
+### New API endpoints
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/contacts` | List / search contacts (`?search=`, `?status=opted_in\|unknown\|blocked`). |
+| `GET` | `/api/v1/contacts/{id}` | Get one contact. |
+| `POST` | `/api/v1/contacts/consent` | Set consent **by phone** (upserts the contact). Body: `{ phone, consent_status, source }`. |
+| `POST` | `/api/v1/contacts/{id}/consent` | Set consent **by id**. Body: `{ consent_status, source }`. |
+| `GET` | `/api/v1/numbers/{id}/health` | A number's live health: status, cool-off window, activity snapshot, recent events. |
+| `GET` | `/api/v1/health/events` | The health-event timeline (filter with `?number_id=`). |
+
+**Mark a recipient opted-in:**
+
+```bash
+curl -X POST http://localhost:3000/api/v1/contacts/consent \
+  -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+  -d '{ "phone": "15551234567", "consent_status": "opted_in", "source": "web_form" }'
+```
+
+### Health & consent tuning (optional env vars)
+
+`CONSENT_UNKNOWN_POLICY` (`allow`/`block`), `HEALTH_WINDOW_MIN`, `HEALTH_MIN_VOLUME`, `HEALTH_ATRISK_RATIO`, `HEALTH_FLAG_RATIO`, `HEALTH_DISCONNECT_ATRISK`, `HEALTH_ATRISK_SLOWDOWN`, `HEALTH_COOLOFF_BASE_MIN`, `HEALTH_COOLOFF_MAX_MIN`, `HEALTH_COOLOFF_ESCALATE_WINDOW_MIN`. See `.env.example` for defaults.
+
+---
+
+**All five milestones are shipped — WaGuard v1 is feature-complete.** A v2 plan (dashboard redesign, downstream developer portal + live API console, contact import, templates, buttons, broadcasts, groups, analytics) lives in `_build_plan/v2/`.
