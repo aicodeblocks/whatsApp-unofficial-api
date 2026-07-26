@@ -14,15 +14,6 @@ import { config } from '../config.js';
  */
 async function swaggerPlugin(app: FastifyInstance): Promise<void> {
   await app.register(fastifySwagger, {
-    // The docs are for downstream API consumers, so only expose the /api/
-    // surface. Internal session-auth dashboard pages (login, setup, /tokens,
-    // the built-in /numbers UI, etc.) are hidden automatically.
-    transform: ({ schema, url }: { schema: any; url: string }) => {
-      if (!url.startsWith('/api/')) {
-        return { schema: { ...(schema ?? {}), hide: true }, url };
-      }
-      return { schema, url };
-    },
     openapi: {
       info: {
         title: `${config.appName} API`,
@@ -41,8 +32,16 @@ async function swaggerPlugin(app: FastifyInstance): Promise<void> {
       },
       security: [{ bearerAuth: [] }],
       tags: [
-        { name: 'system', description: 'Service status and health.' },
-        { name: 'numbers', description: 'Linked WhatsApp numbers and their connection status.' },
+        { name: 'system', description: 'Service status and health. Bearer-token API.' },
+        {
+          name: 'numbers',
+          description: 'Link and manage WhatsApp numbers over the API. Bearer-token API — this is what downstream systems (e.g. a CRM) call.',
+        },
+        {
+          name: 'dashboard (internal)',
+          description:
+            'The built-in admin web UI (HTML pages, admin session-cookie auth). These are NOT for API clients — a downstream app authenticates with a Bearer token and uses the API groups above. Listed here for reference only.',
+        },
       ],
     },
   });
