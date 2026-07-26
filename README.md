@@ -139,7 +139,12 @@ The single most important design goal is keeping your number safe. A message you
 
 > **Reality note:** this uses the unofficial WhatsApp Web protocol, so these measures **reduce** ban risk as far as technically possible — they cannot make it zero. (Health monitoring and consent guardrails in Milestone 5 reduce it further.)
 
-**About the "typing…" indicator (what the recipient sees).** When WaGuard shows "typing…", WhatsApp displays it **live** at the top of the chat on the recipient's phone — exactly as if a person were typing — a moment before your message arrives. It is **ephemeral**: WhatsApp only shows it while the recipient actually has *your* chat open on screen at that instant. If their app is closed, locked, or they're on a different chat, they simply receive the message (and its notification) and never see the past typing state. To watch it happen, keep the recipient's chat open on the receiving phone while you send — you'll see "typing…" appear briefly, then the message. It's only ever shown to the person you're messaging, never broadcast.
+**About the "typing…" indicator (what the recipient sees).** When WaGuard shows "typing…", WhatsApp displays it **live** at the top of the chat on the recipient's phone (the person you sent to) — exactly as if a person were typing — a second or a few before your message arrives. Then "typing…" stops and the message lands. It is **live and ephemeral** — not stored:
+
+- **Chat open** on the recipient's screen when the message goes out → they see "typing…", then the message. ✅ (It can also appear as "typing" under the chat name in their chat list.)
+- **App closed / phone locked / on a different chat** → the typing state already passed, so they never see it; they simply receive the message and its notification.
+
+To see it yourself, keep the recipient phone with that chat **open** while you send — you'll watch "typing…" appear briefly right before the text lands. Note that showing "typing…" does reveal your number is active to **that one recipient** during the send — this is **intentional** (it's what makes the send look human) and is only ever shown to the person you're messaging, never broadcast to anyone else.
 
 ### Messaging API endpoints
 
