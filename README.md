@@ -112,8 +112,44 @@ The number's owner opens **WhatsApp → Settings → Linked Devices → Link a d
 - Not scanned yet → `status: "connecting"` with a fresh `qr` each time (it rotates as it expires).
 - Scanned → `status: "linked"`, `qr: null`, `phone: "1555..."`. Stop polling — the number is ready.
 
-**Step 4 — Send from that number.** Use the number's `id` with the messaging API (arrives in Milestone 3).
+**Step 4 — Send from that number.** Use the number's `id` with the messaging API (see Milestone 3 below).
 
 > Prefer the built-in UI? The dashboard **Numbers** page does the same create → QR → poll flow for you. The API exists so a downstream system (e.g. a CRM) can offer its own linking screen without the dashboard.
 
-Later milestones add: safe sending with anti-ban pacing, receiving via webhooks, and health & consent monitoring. See `_build_plan/prd.md`.
+Later milestones add: receiving via webhooks, and health & consent monitoring. See `_build_plan/prd.md`.
+
+## What's here (Milestone 3) — Safe Sending
+
+Send **text, image, document, audio, and video** messages from a linked number. Every send is routed through an **anti-ban queue** that paces it like a real person — randomized delays, a typing indicator before sending, per-number daily limits with a warm-up ramp, and overnight quiet hours — then tracks its status from `queued` to `delivered`/`read`.
+
+### Messaging API endpoints
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/v1/messages` | **Send a message** (text, or media by URL). Returns `202 { message_id, status: "queued", scheduled }`. |
+| `POST` | `/api/v1/messages/upload` | Send a media message from an **uploaded file** (`multipart/form-data`, file part named `file`). |
+| `GET` | `/api/v1/messages/{id}` | Get a message and its current status. |
+| `GET` | `/api/v1/messages` | List recent messages (filter with `?number_id=`). |
+| `GET` | `/api/v1/numbers/{id}/queue` | Queue snapshot for a number: paused flag, per-state counts, pending/failed jobs. |
+| `POST` | `/api/v1/numbers/{id}/pause` · `/resume` | Pause or resume a number's outbound queue. |
+
+A message's `status` is one of: `queued`, `sent`, `delivered`, `read`, `failed`.
+
+**Send a text message:**
+
+```bash
+curl -X POST http://localhost:3000/api/v1/messages \
+  -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+  -d '{ "number_id": "abc-123", "to": "15551234567", "type": "text", "content": "Hello 👋" }'
+# → 202 { "message_id": "…", "status": "queued", "scheduled": false }
+```
+
+**Media by URL** — set `"type": "image"` (or `document`/`audio`/`video`) with `"media_url": "https://…"` and an optional `"caption"`. **Uploaded file** — `POST /api/v1/messages/upload` as multipart with fields `number_id`, `to`, `type`, optional `caption`/`schedule_at`, and a `file` part. **Schedule** — add `"schedule_at": "2026-08-01T09:00:00Z"` (ISO-8601) to any send.
+
+Then poll `GET /api/v1/messages/{id}` to watch the status advance. The dashboard **Send & Queue** page offers a test-send form, live per-number queue counts, pause/resume, and retry-failed.
+
+### Anti-ban tuning (optional env vars)
+
+Safe defaults ship out of the box. Override in `.env` if needed: `SEND_DELAY_MIN_MS`/`SEND_DELAY_MAX_MS` (inter-send delay), `TYPING_BASE_MS`/`TYPING_PER_CHAR_MS`/`TYPING_MAX_MS` (typing sim), `DAILY_LIMIT_MAX`, `WARMUP_RAMP` (comma list, e.g. `20,40,80,120,160,200`), `QUIET_HOURS_ENABLED`/`QUIET_START_HOUR`/`QUIET_END_HOUR`/`QUIET_TZ`, `SEND_MAX_ATTEMPTS`, `SEND_RETRY_BACKOFF_MS`, `QUEUE_TICK_MS`.
+
+> Receiving inbound replies and status webhooks arrive in Milestone 4 — WaGuard is send-only until then.
