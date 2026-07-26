@@ -73,6 +73,17 @@ The initial M2 build only exposed the QR on the session-auth dashboard endpoint;
 
 All schema'd, so they auto-appear in `/docs` and the OpenAPI spec. Verified end-to-end with a token: create→201, QR poll→real data-URI, no-token→401, relink→200, delete→`{ok:true}`, list empty, spec contains all paths, 0 errors. The dashboard's own `/numbers/:id/qr` (session auth) remains for the built-in UI.
 
+## Real-device validation (2026-07-26) — the previously-pending item is now DONE
+
+Confirmed on the running Docker instance with a real phone (number `15513423891`):
+- Scanned the QR → number flipped to `status: linked`, phone captured, `linked_at` set.
+- Full Baileys credentials persisted to `data/sessions/<id>/` (`creds.json`, pre-keys, app-state-sync keys, identity keys).
+- **`docker compose restart` → the number auto-reconnected to `linked` without any re-scan** (init() reconnected from saved creds; logs clean, no errors).
+
+So the entire Milestone 2 "Done when" is now verified end-to-end including the physical-phone round trip. The earlier "needs a real phone" caveat is resolved.
+
+Also added after the initial build (see git history): token linking endpoints, `qr.png` (scannable image), `qr/live` (auto-refreshing HTML page), the dashboard showing each number's id, and a docs cleanup grouping routes into system / numbers / dashboard (internal).
+
 ## Deviations from the PRD
 
 None in scope. Session credentials stored as files (see decisions) rather than a literal DB column — a standard, intentional realization of the data-model concept, not a scope change.
