@@ -43,3 +43,35 @@ export function humanInTz(iso: string | null | undefined, tz: string = config.di
   const s = isoInTz(iso, tz);
   return s ? s.slice(0, 19).replace('T', ' ') : '—';
 }
+
+/**
+ * The calendar-day key ("YYYY-MM-DD") a UTC instant falls on in the display
+ * timezone — used to bucket rows into day-granularity analytics without
+ * needing exact UTC day-boundary math (see `dayKeysBetween`).
+ */
+export function dateKeyInTz(iso: string, tz: string = config.displayTz): string {
+  const d = new Date(iso);
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' })
+      .formatToParts(d)
+      .map((p) => [p.type, p.value]),
+  ) as Record<string, string>;
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+/** Today's calendar-day key in the display timezone. */
+export function todayKeyInTz(tz: string = config.displayTz): string {
+  return dateKeyInTz(new Date().toISOString(), tz);
+}
+
+/** Every "YYYY-MM-DD" key from `from` to `to` inclusive (both are date keys). */
+export function dayKeysBetween(from: string, to: string): string[] {
+  const out: string[] = [];
+  let cursor = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  while (cursor.getTime() <= end.getTime()) {
+    out.push(cursor.toISOString().slice(0, 10));
+    cursor = new Date(cursor.getTime() + 86_400_000);
+  }
+  return out;
+}

@@ -213,6 +213,31 @@ export function runMigrations(db: Database): void {
       created_at         TEXT NOT NULL,
       UNIQUE(number_id, provider_group_id)
     );
+
+    -- v2 Milestone 5: a per-number, per-day rollup of message counts so the
+    -- Analytics charts don't rescan all of messages on every page load.
+    -- 'date' is a display-timezone calendar day ("YYYY-MM-DD"), not UTC,
+    -- computed via dateKeyInTz(). Rows are only ever written for days that
+    -- have fully elapsed; "today" is always computed live (see db/analytics.ts).
+
+    CREATE TABLE IF NOT EXISTS daily_stats (
+      number_id       TEXT NOT NULL,
+      date            TEXT NOT NULL,
+      sent_count      INTEGER NOT NULL DEFAULT 0,
+      delivered_count INTEGER NOT NULL DEFAULT 0,
+      read_count      INTEGER NOT NULL DEFAULT 0,
+      failed_count    INTEGER NOT NULL DEFAULT 0,
+      received_count  INTEGER NOT NULL DEFAULT 0,
+      computed_at     TEXT NOT NULL,
+      PRIMARY KEY (number_id, date)
+    );
+    CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(date);
+
+    -- Bare created_at indexes for all-numbers date-range analytics queries —
+    -- existing indexes on messages/health_events are all number-id-scoped
+    -- composites, which don't help a query spanning every number.
+    CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
+    CREATE INDEX IF NOT EXISTS idx_health_created ON health_events(created_at);
   `);
 
   // v2 M4: existing installs created `messages.contact_id` as NOT NULL (M3's

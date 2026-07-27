@@ -1,0 +1,288 @@
+<%- include('partials/head', { title: 'Analytics', active: 'analytics' }) %>
+<%
+  function esc(v){ return String(v==null?'':v).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];}); }
+  function pct(n){ return Math.round(n*100) + '%'; }
+  function statusPill(s){
+    if(s==='sending')   return '<span class="pill linked">sending</span>';
+    if(s==='scheduled') return '<span class="pill warn">scheduled</span>';
+    if(s==='paused')    return '<span class="pill warn">paused</span>';
+    if(s==='completed') return '<span class="pill linked">completed</span>';
+    if(s==='cancelled') return '<span class="pill bad">cancelled</span>';
+    return '<span class="pill">draft</span>';
+  }
+%>
+<style>
+  .chart-card svg{ width:100%; height:220px; display:block; }
+  .chart-card .axis-label{ font-size:10px; fill:var(--muted); }
+  .chart-legend{ display:flex; gap:14px; flex-wrap:wrap; margin-top:8px; font-size:12.5px; color:var(--muted); }
+  .chart-legend .sw{ display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
+</style>
+
+<h1>Analytics</h1>
+<p class="sub">Sends, delivery, inbound volume, and health incidents over a date range — built entirely from existing data.</p>
+
+<div class="card">
+  <form method="get" action="/analytics" class="row" style="align-items:flex-end; gap:12px;">
+    <div>
+      <label for="from">From</label>
+      <input id="from" name="from" type="date" value="<%= from %>" />
+    </div>
+    <div>
+      <label for="to">To</label>
+      <input id="to" name="to" type="date" value="<%= to %>" />
+    </div>
+    <div style="min-width:200px;">
+      <label for="number_id">Number</label>
+      <select id="number_id" name="number_id">
+        <option value="">All numbers</option>
+        <% numbers.forEach(function(n){ %>
+          <option value="<%= n.id %>" <%= numberId===n.id?'selected':'' %>><%= esc(n.label) %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div><button type="submit">Apply</button></div>
+    <div><a class="btn secondary" href="/analytics/export.csv?from=<%= from %>&to=<%= to %>&number_id=<%= numberId %>">Export CSV</a></div>
+  </form>
+</div>
+
+<div class="health-strip" style="margin-top:16px;">
+  <div class="metric"><span class="muted-note">Sent</span><strong><%= kpis.sent %></strong></div>
+  <div class="metric"><span class="muted-note">Delivery rate</span><strong><%= pct(kpis.deliveryRate) %></strong></div>
+  <div class="metric"><span class="muted-note">Read rate</span><strong><%= pct(kpis.readRate) %></strong></div>
+  <div class="metric <%= kpis.failed>0?'attention':'' %>"><span class="muted-note">Failed</span><strong><%= kpis.failed %></strong></div>
+  <div class="metric"><span class="muted-note">Inbound</span><strong><%= kpis.received %></strong></div>
+</div>
+
+<div class="card chart-card" style="margin-top:16px;">
+  <h3 style="margin:0 0 4px;">Sends over time</h3>
+  <p class="muted-note" style="margin:0 0 10px;">Outbound messages per day by current status.</p>
+  <svg id="chart-sends"></svg>
+  <div class="chart-legend">
+    <span><span class="sw" style="background:var(--ok);"></span>Delivered</span>
+    <span><span class="sw" style="background:var(--accent);"></span>Read</span>
+    <span><span class="sw" style="background:var(--info,#3b82f6);"></span>Sent</span>
+    <span><span class="sw" style="background:var(--danger);"></span>Failed</span>
+  </div>
+</div>
+
+<div class="card chart-card" style="margin-top:16px;">
+  <h3 style="margin:0 0 4px;">Inbound volume</h3>
+  <p class="muted-note" style="margin:0 0 10px;">Messages received per day.</p>
+  <svg id="chart-inbound"></svg>
+</div>
+
+<div class="card chart-card" style="margin-top:16px;">
+  <h3 style="margin:0 0 4px;">Health incidents over time</h3>
+  <p class="muted-note" style="margin:0 0 10px;">Health-event count per day by severity.</p>
+  <% if (healthIncidents.length === 0) { %>
+    <span class="sub">No health events in this range.</span>
+  <% } else { %>
+  <svg id="chart-health"></svg>
+  <div class="chart-legend">
+    <span><span class="sw" style="background:var(--danger);"></span>Critical</span>
+    <span><span class="sw" style="background:var(--warn);"></span>Warning</span>
+    <span><span class="sw" style="background:var(--muted);"></span>Info</span>
+  </div>
+  <% } %>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <h3 style="margin:0 0 10px;">Per-number breakdown</h3>
+  <% if (perNumber.length === 0) { %>
+    <span class="sub">No numbers yet.</span>
+  <% } else { %>
+  <svg id="chart-numbers" style="height:180px;"></svg>
+  <div class="table-wrap" style="margin-top:12px;">
+    <table>
+      <thead><tr><th>Number</th><th>Sent</th><th>Delivered</th><th>Read</th><th>Failed</th><th>Received</th></tr></thead>
+      <tbody>
+        <% perNumber.forEach(function(r){ %>
+          <tr>
+            <td><strong><%= esc(r.number.label) %></strong><% if (r.number.phone_number) { %> <span class="muted-note">+<%= esc(r.number.phone_number) %></span><% } %></td>
+            <td><%= r.sent %></td>
+            <td><%= r.delivered %></td>
+            <td><%= r.read %></td>
+            <td style="<%= r.failed>0?'color:var(--danger)':'' %>"><%= r.failed %></td>
+            <td><%= r.received %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <h3 style="margin:0 0 10px;">Campaign performance</h3>
+  <p class="muted-note" style="margin:-6px 0 10px;">Campaigns created in this range.</p>
+  <% if (campaigns.length === 0) { %>
+    <span class="sub">No campaigns created in this range.</span>
+  <% } else { %>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Campaign</th><th>Status</th><th>Total</th><th>Sent</th><th>Delivered</th><th>Read</th><th>Failed</th></tr></thead>
+      <tbody>
+        <% campaigns.forEach(function(c){ %>
+          <tr>
+            <td><a href="/broadcasts/<%= c.id %>"><%= esc(c.name) %></a></td>
+            <td><%- statusPill(c.status) %></td>
+            <td><%= c.progress.total %></td>
+            <td><%= c.progress.sent %></td>
+            <td><%= c.progress.delivered %></td>
+            <td><%= c.progress.read %></td>
+            <td style="<%= c.progress.failed>0?'color:var(--danger)':'' %>"><%= c.progress.failed %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>
+
+<script type="application/json" id="analytics-data">
+<%- JSON.stringify({
+  daily: daily,
+  healthIncidents: healthIncidents,
+  perNumber: perNumber.map(function(r){ return { label: r.number.label, sent: r.sent, delivered: r.delivered, read: r.read, failed: r.failed }; }),
+}) %>
+</script>
+<script>
+/**
+ * Minimal dependency-free SVG chart primitives — stacked bars and a
+ * grouped bar chart. Deliberately simple: this app has no charting library
+ * and none is being added for one dashboard page (see the v2 M5 milestone log).
+ */
+(function () {
+  var DATA = JSON.parse(document.getElementById('analytics-data').textContent);
+  var NS = 'http://www.w3.org/2000/svg';
+
+  function el(tag, attrs) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  function cssVar(name, fallback) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }
+
+  /** A stacked bar chart. categories: string[]; series: [{key, color}]; rows: [{<category-key>: ..., [seriesKey]: number}] keyed by `catKey`. */
+  function drawStackedBars(svg, categories, catKey, series, rows, opts) {
+    opts = opts || {};
+    var W = 900, H = opts.height || 220, padL = 34, padB = 26, padT = 10, padR = 8;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    if (categories.length === 0) return;
+
+    var byCat = {};
+    rows.forEach(function (r) { byCat[r[catKey]] = r; });
+    var totals = categories.map(function (c) {
+      var r = byCat[c] || {};
+      return series.reduce(function (sum, s) { return sum + (r[s.key] || 0); }, 0);
+    });
+    var max = Math.max(1, Math.max.apply(null, totals));
+    var innerW = W - padL - padR, innerH = H - padT - padB;
+    var bw = Math.max(2, (innerW / categories.length) * 0.7);
+    var step = innerW / categories.length;
+
+    // y-axis gridline + label at max
+    svg.appendChild(el('line', { x1: padL, y1: padT, x2: W - padR, y2: padT, stroke: 'var(--line)', 'stroke-width': 1 }));
+    var maxLabel = el('text', { x: 4, y: padT + 4, class: 'axis-label' }); maxLabel.textContent = String(max);
+    svg.appendChild(maxLabel);
+    svg.appendChild(el('line', { x1: padL, y1: H - padB, x2: W - padR, y2: H - padB, stroke: 'var(--line-strong)', 'stroke-width': 1 }));
+
+    categories.forEach(function (c, i) {
+      var r = byCat[c] || {};
+      var x = padL + i * step + (step - bw) / 2;
+      var y = H - padB;
+      series.forEach(function (s) {
+        var v = r[s.key] || 0;
+        if (v <= 0) return;
+        var h = (v / max) * innerH;
+        y -= h;
+        var rect = el('rect', { x: x, y: y, width: bw, height: h, fill: s.color, rx: 1 });
+        var title = el('title'); title.textContent = c + ' — ' + s.key + ': ' + v;
+        rect.appendChild(title);
+        svg.appendChild(rect);
+      });
+      // sparse x labels: first, middle, last
+      if (i === 0 || i === categories.length - 1 || i === Math.floor(categories.length / 2)) {
+        var lbl = el('text', { x: x + bw / 2, y: H - padB + 14, 'text-anchor': 'middle', class: 'axis-label' });
+        lbl.textContent = c.slice(5); // MM-DD
+        svg.appendChild(lbl);
+      }
+    });
+  }
+
+  /** A simple grouped/single bar chart for categorical (non-date) data. */
+  function drawBars(svg, categories, value, opts) {
+    opts = opts || {};
+    var W = 900, H = opts.height || 180, padL = 60, padB = 26, padT = 10, padR = 8;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    if (categories.length === 0) return;
+    var values = categories.map(value);
+    var max = Math.max(1, Math.max.apply(null, values));
+    var innerW = W - padL - padR, innerH = H - padT - padB;
+    var step = innerW / categories.length;
+    var bw = Math.max(4, step * 0.6);
+
+    svg.appendChild(el('line', { x1: padL, y1: H - padB, x2: W - padR, y2: H - padB, stroke: 'var(--line-strong)', 'stroke-width': 1 }));
+
+    categories.forEach(function (c, i) {
+      var v = value(c);
+      var h = (v / max) * innerH;
+      var x = padL + i * step + (step - bw) / 2;
+      var y = H - padB - h;
+      var rect = el('rect', { x: x, y: y, width: bw, height: h, fill: 'var(--accent)', rx: 2 });
+      var title = el('title'); title.textContent = c.label + ': ' + v;
+      rect.appendChild(title);
+      svg.appendChild(rect);
+      var nameLbl = el('text', { x: x + bw / 2, y: H - padB + 14, 'text-anchor': 'middle', class: 'axis-label' });
+      nameLbl.textContent = c.label.length > 10 ? c.label.slice(0, 9) + '…' : c.label;
+      svg.appendChild(nameLbl);
+    });
+  }
+
+  var sendsSvg = document.getElementById('chart-sends');
+  if (sendsSvg) {
+    drawStackedBars(sendsSvg, DATA.daily.map(function (d) { return d.date; }), 'date', [
+      { key: 'delivered', color: cssVar('--ok', '#22c55e') },
+      { key: 'read', color: cssVar('--accent', '#6366f1') },
+      { key: 'sent', color: cssVar('--info', '#3b82f6') },
+      { key: 'failed', color: cssVar('--danger', '#ef4444') },
+    ], DATA.daily);
+  }
+
+  var inboundSvg = document.getElementById('chart-inbound');
+  if (inboundSvg) {
+    drawStackedBars(inboundSvg, DATA.daily.map(function (d) { return d.date; }), 'date', [
+      { key: 'received', color: cssVar('--accent', '#6366f1') },
+    ], DATA.daily);
+  }
+
+  var healthSvg = document.getElementById('chart-health');
+  if (healthSvg) {
+    var days = [];
+    var byDay = {};
+    DATA.healthIncidents.forEach(function (e) {
+      if (!byDay[e.date]) { byDay[e.date] = { date: e.date, info: 0, warning: 0, critical: 0 }; days.push(e.date); }
+      byDay[e.date][e.severity] = (byDay[e.date][e.severity] || 0) + e.count;
+    });
+    days.sort();
+    drawStackedBars(healthSvg, days, 'date', [
+      { key: 'critical', color: cssVar('--danger', '#ef4444') },
+      { key: 'warning', color: cssVar('--warn', '#f59e0b') },
+      { key: 'info', color: cssVar('--muted', '#9ca3af') },
+    ], days.map(function (d) { return byDay[d]; }));
+  }
+
+  var numbersSvg = document.getElementById('chart-numbers');
+  if (numbersSvg) {
+    drawBars(numbersSvg, DATA.perNumber, function (c) { return c.sent; }, { height: 180 });
+  }
+})();
+</script>
+
+<%- include('partials/foot') %>
