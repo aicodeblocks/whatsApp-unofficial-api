@@ -296,3 +296,19 @@ Opening the dashboard now shows live status at a glance:
 - No new endpoints or env vars. The whole shell is server-rendered EJS; all styling stays inline in `src/views/partials/head.ejs` (no static-asset serving added).
 - Shared shell data (`appName`, `appVersion`, `numberCount`, `linkedCount`) is injected into every view by a single global `onRequest` hook in `src/server.ts` via `reply.locals` — individual routes don't pass it.
 - **Local run caveat:** `npm run dev` (tsx) fails on some hosts because a Baileys 7 transitive WASM dependency (`whatsapp-rust-bridge`) only exposes an ESM `import` condition that Node's CJS resolver rejects. Use the compiled path instead — `npm run build && node dist/server.js` — which is exactly what the Docker image runs.
+
+## What's here (v2 · Milestone 2) — Developer portal: docs + interactive API console
+
+A human-friendly API reference at **`/developers`**, distinct from the raw Swagger UI (`/docs`, still available), plus a live "try it" console — all generated straight from the same OpenAPI document the API already produces, so the docs can't drift from the real endpoints.
+
+- **Getting started** — create a token (links to API Tokens), the service's base URL, and a first curl call.
+- **Endpoint reference** grouped by area (System, Numbers, Messages, Contacts, Health), each endpoint an expandable row with its description, a path/query parameter table, a request-body example, and a copyable curl snippet. A search box filters the list.
+- **Webhooks section** — field tables for each webhook payload shape (`WebhookMessageInbound`/`Status`/`HealthEvent`) plus a signature-verification code snippet (HMAC-SHA256 of the raw body).
+- **Interactive console** — pick an endpoint (grouped `<select>`), fill in path/query params and an editable JSON body, paste a token (remembered in `localStorage`), and **Send** a real same-origin request; the response panel shows status, latency, and pretty-printed JSON. The multipart upload endpoint and binary QR/media endpoints are documented with a working curl snippet but excluded from the console (no clean JSON round-trip).
+- The sidebar/footer/account-menu "API Docs" links now point to `/developers`; the Overview page's docs card links there too, with the raw Swagger UI and spec download kept as secondary actions.
+
+### Notes for maintainers
+
+- No new endpoints, dependencies, or env vars. `src/routes/dashboard/portal.ts` builds the whole view model from `app.swagger()` at request time (grouping by tag, walking each operation's parameters/requestBody, and deriving a JSON example from each body schema) — it reuses the exact schemas already declared on every route in `src/routes/api/*.ts`.
+- The portal route (`GET /developers`) is public, same posture as `/docs` — downstream developers won't have an admin session.
+- The console is vanilla JS embedded in `src/views/portal.ejs` (no build step, no client dependency) — the endpoint list it needs is embedded server-side as a `<script type="application/json">` blob.

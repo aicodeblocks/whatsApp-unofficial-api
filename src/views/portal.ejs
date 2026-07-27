@@ -1,0 +1,374 @@
+<%- include('partials/head', { title: 'Developers', active: 'developers' }) %>
+<style>
+  .portal-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px; flex-wrap:wrap; }
+  .portal-head .sub{ margin:0; max-width:640px; }
+  .kv{ display:grid; grid-template-columns:120px 1fr; gap:8px 14px; font-size:14px; }
+  .kv dt{ color:var(--muted); }
+  .kv dd{ margin:0; }
+  pre.snippet{ background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 14px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; overflow-x:auto; white-space:pre; margin:8px 0; }
+  .snippet-wrap{ position:relative; }
+  .copy-btn{ position:absolute; top:8px; right:8px; font-size:11px; padding:4px 9px; z-index:1; }
+  .searchbox{ width:100%; max-width:340px; }
+  .ep{ border:1px solid var(--line); border-radius:var(--radius-sm); margin-bottom:8px; background:var(--panel); }
+  .ep summary{ list-style:none; cursor:pointer; display:flex; align-items:center; gap:10px; padding:11px 14px; font-size:14px; }
+  .ep summary::-webkit-details-marker{ display:none; }
+  .ep summary .path{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; }
+  .ep summary .sum{ color:var(--muted); flex:1; }
+  .method{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; letter-spacing:.02em; flex-shrink:0; width:56px; text-align:center; }
+  .method.GET{ background:var(--accent-soft); color:var(--accent-strong); }
+  .method.POST{ background:var(--info); color:#fff; opacity:.85; }
+  .method.DELETE{ background:var(--danger-soft); color:var(--danger); }
+  .ep-body{ padding:0 14px 14px; border-top:1px solid var(--line); }
+  .ep-body p{ font-size:13.5px; color:var(--muted); margin:12px 0; }
+  .ep-actions{ display:flex; gap:8px; margin-top:10px; }
+  .group-card{ margin-bottom:22px; }
+  .group-card h2{ display:flex; align-items:center; gap:10px; }
+  .group-card .count{ font-size:12px; font-weight:500; color:var(--muted); }
+
+  .console-card{ padding:0; overflow:hidden; }
+  .console-top{ padding:20px 20px 0; }
+  .console-grid{ display:grid; grid-template-columns:1fr 1fr; gap:0; }
+  .console-col{ padding:16px 20px 20px; }
+  .console-col + .console-col{ border-left:1px solid var(--line); }
+  .console-params{ display:flex; flex-direction:column; gap:2px; }
+  .console-params .empty-note{ color:var(--muted); font-size:13px; padding:6px 0; }
+  #resp-status{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); }
+  #resp-status.ok{ color:var(--accent-strong); border-color:var(--accent); background:var(--accent-soft); }
+  #resp-status.client-err{ color:var(--warn); border-color:var(--warn); background:var(--warn-soft); }
+  #resp-status.server-err{ color:var(--danger); border-color:var(--danger); background:var(--danger-soft); }
+  #resp-body{ max-height:340px; overflow:auto; }
+  .resp-meta{ display:flex; align-items:center; gap:10px; margin-bottom:8px; font-size:12.5px; color:var(--muted); }
+  @media (max-width: 800px){ .console-grid{ grid-template-columns:1fr; } .console-col + .console-col{ border-left:0; border-top:1px solid var(--line); } }
+</style>
+
+<div class="portal-head">
+  <div>
+    <h1>Developers</h1>
+    <p class="sub">Read the API contract and call the live service directly from the panel with a token — no separate tool needed.</p>
+  </div>
+  <div class="quick-actions">
+    <a class="btn secondary" href="/openapi.json">Download OpenAPI spec</a>
+    <a class="btn secondary" href="/docs">Raw Swagger UI</a>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Getting started</h2>
+  <dl class="kv">
+    <dt>1. Create a token</dt>
+    <dd>Head to <a href="/tokens">API Tokens</a> and create one — you'll need it for every call below.</dd>
+    <dt>2. Base URL</dt>
+    <dd><code><%= baseUrl %></code></dd>
+    <dt>3. First call</dt>
+    <dd>
+      <div class="snippet-wrap">
+        <button class="btn secondary copy-btn" type="button" data-copy="get-started-curl">Copy</button>
+        <pre class="snippet" id="get-started-curl">curl "<%= baseUrl %>/api/v1/numbers" \
+  -H "Authorization: Bearer &lt;token&gt;"</pre>
+      </div>
+    </dd>
+  </dl>
+</div>
+
+<div class="card">
+  <div class="row" style="justify-content:space-between;">
+    <h2 style="margin:0;">Endpoint reference</h2>
+    <input class="searchbox" id="ep-search" type="text" placeholder="Filter by path or summary…" />
+  </div>
+</div>
+
+<% groups.forEach(function (g) { %>
+  <div class="card group-card" data-group>
+    <h2><%= g.label %> <span class="count">(<%= g.endpoints.length %>)</span></h2>
+    <% g.endpoints.forEach(function (e) { %>
+      <details class="ep" data-ep-row data-search="<%= (e.method + ' ' + e.path + ' ' + e.summary).toLowerCase() %>">
+        <summary>
+          <span class="method <%= e.method %>"><%= e.method %></span>
+          <span class="path"><%= e.path %></span>
+          <span class="sum"><%= e.summary %></span>
+        </summary>
+        <div class="ep-body">
+          <% if (e.description) { %><p><%= e.description %></p><% } %>
+          <% if (e.pathParams.length || e.queryParams.length) { %>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Param</th><th>In</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                <tbody>
+                  <% e.pathParams.concat(e.queryParams).forEach(function (p) { %>
+                    <tr>
+                      <td><code><%= p.name %></code></td>
+                      <td class="sub"><%= p.in %></td>
+                      <td class="sub"><%= p.type %></td>
+                      <td class="sub"><%= p.required ? 'yes' : 'no' %></td>
+                      <td class="sub"><%= p.description %></td>
+                    </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+          <% if (e.hasBody) { %>
+            <p style="margin-bottom:4px;">Request body example:</p>
+            <pre class="snippet"><%= JSON.stringify(e.bodyExample, null, 2) %></pre>
+          <% } %>
+          <div class="snippet-wrap">
+            <button class="btn secondary copy-btn" type="button" data-copy="curl-<%= e.id %>">Copy</button>
+            <pre class="snippet" id="curl-<%= e.id %>"><%= e.curl %></pre>
+          </div>
+          <div class="ep-actions">
+            <% if (e.consoleEnabled) { %>
+              <button class="btn secondary" type="button" data-try="<%= e.id %>">Try it in console</button>
+            <% } else { %>
+              <span class="muted-note">Not available in the console — use the curl snippet above (binary or multipart request).</span>
+            <% } %>
+          </div>
+        </div>
+      </details>
+    <% }); %>
+  </div>
+<% }); %>
+
+<div class="card">
+  <h2>Webhooks</h2>
+  <p class="sub" style="margin-bottom:14px;">WaGuard pushes events to your configured endpoint as signed JSON POSTs — see the <a href="/webhooks">Webhooks page</a> to set one up.</p>
+  <p style="font-size:13.5px;">Every payload is a <code>WebhookEnvelope</code>: <code>{ event, timestamp, data }</code>, where <code>data</code> is one of the shapes below depending on <code>event</code>.</p>
+  <p style="font-size:13.5px; margin-bottom:16px;">Requests carry <code>X-WaGuard-Signature: sha256=&lt;hmac&gt;</code> — an HMAC-SHA256 (hex) of the raw request body using your endpoint secret. Verify it before trusting the payload:</p>
+  <pre class="snippet">const crypto = require('node:crypto');
+const expected = 'sha256=' + crypto.createHmac('sha256', endpointSecret).update(rawBody).digest('hex');
+if (expected !== req.headers['x-waguard-signature']) throw new Error('bad signature');</pre>
+
+  <% webhookSchemas.forEach(function (w) { %>
+    <h3 style="margin:18px 0 6px; font-size:14px;"><%= w.name %> <span class="sub" style="display:inline; font-size:12.5px;">— event <code><%=
+      w.name === 'WebhookMessageInbound' ? 'message.inbound' : w.name === 'WebhookMessageStatus' ? 'message.status' : 'health.event'
+    %></code></span></h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <% w.fields.forEach(function (f) { %>
+            <tr><td><code><%= f.name %></code></td><td class="sub"><%= f.type %></td><td class="sub"><%= f.description %></td></tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% }); %>
+</div>
+
+<div class="card console-card" id="console">
+  <div class="console-top">
+    <h2>Try it — interactive console</h2>
+    <p class="sub" style="margin:0 0 14px;">Pick an endpoint, fill in the fields, and send a real request to this running service.</p>
+    <div class="row" style="align-items:flex-end; gap:16px;">
+      <div style="flex:2; min-width:220px;">
+        <label for="console-token">API token</label>
+        <input id="console-token" type="text" placeholder="Paste a token from /tokens" />
+      </div>
+      <div style="flex:3; min-width:260px;">
+        <label for="console-endpoint">Endpoint</label>
+        <select id="console-endpoint"></select>
+      </div>
+      <button class="btn" type="button" id="console-send">Send</button>
+    </div>
+  </div>
+  <div class="console-grid">
+    <div class="console-col">
+      <h2 style="font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);">Request</h2>
+      <div id="console-params" class="console-params"></div>
+      <div id="console-body-wrap" style="display:none;">
+        <label for="console-body">JSON body</label>
+        <textarea id="console-body" rows="8"></textarea>
+      </div>
+    </div>
+    <div class="console-col">
+      <h2 style="font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);">Response</h2>
+      <div class="resp-meta">
+        <span id="resp-status">—</span>
+        <span id="resp-time"></span>
+      </div>
+      <pre class="snippet" id="resp-body">Send a request to see the response here.</pre>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="portal-data"><%- JSON.stringify({ groups: groups.map(function(g){ return { tag: g.tag, label: g.label, endpoints: g.endpoints.filter(function(e){return e.consoleEnabled;}).map(function(e){ return { id: e.id, method: e.method, path: e.path, summary: e.summary, pathParams: e.pathParams, queryParams: e.queryParams, hasBody: e.hasBody, bodyExample: e.bodyExample }; }) }; }), baseUrl: baseUrl }) %></script>
+
+<script>
+(function () {
+  var DATA = JSON.parse(document.getElementById('portal-data').textContent);
+  var byId = {};
+  DATA.groups.forEach(function (g) { g.endpoints.forEach(function (e) { byId[e.id] = e; }); });
+
+  // ---- copy buttons -------------------------------------------------------
+  document.querySelectorAll('[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var text = document.getElementById(btn.getAttribute('data-copy')).textContent;
+      navigator.clipboard.writeText(text).then(function () {
+        var orig = btn.textContent; btn.textContent = 'Copied!';
+        setTimeout(function () { btn.textContent = orig; }, 1200);
+      });
+    });
+  });
+
+  // ---- endpoint filter ------------------------------------------------------
+  var search = document.getElementById('ep-search');
+  search.addEventListener('input', function () {
+    var q = search.value.trim().toLowerCase();
+    document.querySelectorAll('[data-ep-row]').forEach(function (row) {
+      row.style.display = !q || row.getAttribute('data-search').indexOf(q) !== -1 ? '' : 'none';
+    });
+    document.querySelectorAll('[data-group]').forEach(function (group) {
+      var anyVisible = Array.prototype.some.call(group.querySelectorAll('[data-ep-row]'), function (r) { return r.style.display !== 'none'; });
+      group.style.display = anyVisible ? '' : 'none';
+    });
+  });
+
+  // ---- console --------------------------------------------------------------
+  var tokenInput = document.getElementById('console-token');
+  var endpointSelect = document.getElementById('console-endpoint');
+  var paramsWrap = document.getElementById('console-params');
+  var bodyWrap = document.getElementById('console-body-wrap');
+  var bodyInput = document.getElementById('console-body');
+  var sendBtn = document.getElementById('console-send');
+  var statusEl = document.getElementById('resp-status');
+  var timeEl = document.getElementById('resp-time');
+  var respBody = document.getElementById('resp-body');
+
+  try {
+    var savedToken = localStorage.getItem('waguard-console-token');
+    if (savedToken) tokenInput.value = savedToken;
+  } catch (e) {}
+  tokenInput.addEventListener('input', function () {
+    try { localStorage.setItem('waguard-console-token', tokenInput.value); } catch (e) {}
+  });
+
+  DATA.groups.forEach(function (g) {
+    if (!g.endpoints.length) return;
+    var optgroup = document.createElement('optgroup');
+    optgroup.label = g.label;
+    g.endpoints.forEach(function (e) {
+      var opt = document.createElement('option');
+      opt.value = e.id;
+      opt.textContent = e.method + ' ' + e.path + (e.summary ? ' — ' + e.summary : '');
+      optgroup.appendChild(opt);
+    });
+    endpointSelect.appendChild(optgroup);
+  });
+
+  function renderParams() {
+    var e = byId[endpointSelect.value];
+    paramsWrap.innerHTML = '';
+    if (!e) return;
+    var all = (e.pathParams || []).concat(e.queryParams || []);
+    if (!all.length) {
+      paramsWrap.innerHTML = '<div class="empty-note">No path or query parameters.</div>';
+    } else {
+      all.forEach(function (p) {
+        var label = document.createElement('label');
+        label.textContent = p.name + (p.in === 'path' ? ' (path' : ' (query') + (p.required ? ', required)' : ')');
+        label.setAttribute('for', 'param-' + p.name);
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.id = 'param-' + p.name;
+        input.dataset.paramName = p.name;
+        input.dataset.paramIn = p.in;
+        if (p.enum && p.enum.length) input.placeholder = p.enum.join(' | ');
+        paramsWrap.appendChild(label);
+        paramsWrap.appendChild(input);
+      });
+    }
+    if (e.hasBody) {
+      bodyWrap.style.display = '';
+      bodyInput.value = JSON.stringify(e.bodyExample, null, 2);
+    } else {
+      bodyWrap.style.display = 'none';
+      bodyInput.value = '';
+    }
+  }
+  endpointSelect.addEventListener('change', renderParams);
+  renderParams();
+
+  // "Try it in console" buttons on each endpoint card jump here and pre-select.
+  document.querySelectorAll('[data-try]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.getAttribute('data-try');
+      if (!byId[id]) return;
+      endpointSelect.value = id;
+      renderParams();
+      document.getElementById('console').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  function setStatus(code) {
+    statusEl.textContent = String(code);
+    statusEl.className = code >= 500 ? 'server-err' : code >= 400 ? 'client-err' : 'ok';
+  }
+
+  sendBtn.addEventListener('click', function () {
+    var e = byId[endpointSelect.value];
+    if (!e) return;
+    var token = tokenInput.value.trim();
+
+    var path = e.path;
+    var missing = [];
+    (e.pathParams || []).forEach(function (p) {
+      var input = document.getElementById('param-' + p.name);
+      var val = input ? input.value.trim() : '';
+      if (!val) missing.push(p.name);
+      path = path.replace('{' + p.name + '}', encodeURIComponent(val));
+    });
+    if (missing.length) {
+      respBody.textContent = 'Missing required path parameter(s): ' + missing.join(', ');
+      setStatus(0); statusEl.textContent = '—';
+      return;
+    }
+
+    var query = [];
+    (e.queryParams || []).forEach(function (p) {
+      var input = document.getElementById('param-' + p.name);
+      var val = input ? input.value.trim() : '';
+      if (val) query.push(encodeURIComponent(p.name) + '=' + encodeURIComponent(val));
+    });
+    var url = path + (query.length ? '?' + query.join('&') : '');
+
+    var headers = { Accept: 'application/json' };
+    if (token) headers.Authorization = 'Bearer ' + token;
+    var opts = { method: e.method, headers: headers };
+    if (e.hasBody) {
+      headers['Content-Type'] = 'application/json';
+      try {
+        JSON.parse(bodyInput.value);
+      } catch (err) {
+        respBody.textContent = 'Body is not valid JSON: ' + err.message;
+        return;
+      }
+      opts.body = bodyInput.value;
+    }
+
+    sendBtn.disabled = true; sendBtn.textContent = 'Sending…';
+    var started = Date.now();
+    fetch(url, opts)
+      .then(function (r) {
+        var elapsed = Date.now() - started;
+        timeEl.textContent = elapsed + ' ms';
+        setStatus(r.status);
+        var ct = r.headers.get('content-type') || '';
+        if (ct.indexOf('application/json') !== -1) {
+          return r.json().then(function (json) { respBody.textContent = JSON.stringify(json, null, 2); });
+        }
+        return r.blob().then(function (blob) {
+          respBody.textContent = blob.size ? '(' + ct + ', ' + blob.size + ' bytes — not JSON, view via curl)' : '(empty body)';
+        });
+      })
+      .catch(function (err) {
+        setStatus(0); statusEl.textContent = 'error';
+        respBody.textContent = String(err);
+      })
+      .finally(function () {
+        sendBtn.disabled = false; sendBtn.textContent = 'Send';
+      });
+  });
+})();
+</script>
+
+<%- include('partials/foot') %>

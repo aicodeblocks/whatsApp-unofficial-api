@@ -18,6 +18,7 @@ import { contactDashboardRoutes } from './routes/dashboard/contacts.js';
 import { dashboardRoutes } from './routes/dashboard/index.js';
 import { healthDashboardRoutes } from './routes/dashboard/health.js';
 import { numberDashboardRoutes } from './routes/dashboard/numbers.js';
+import { portalRoutes } from './routes/dashboard/portal.js';
 import { queueDashboardRoutes } from './routes/dashboard/queue.js';
 import { webhookDashboardRoutes } from './routes/dashboard/webhooks.js';
 import { whatsappManager } from './whatsapp/manager.js';
@@ -72,6 +73,7 @@ async function main(): Promise<void> {
   await app.register(async (instance) => webhookDashboardRoutes(instance));
   await app.register(async (instance) => contactDashboardRoutes(instance));
   await app.register(async (instance) => healthDashboardRoutes(instance));
+  await app.register(async (instance) => portalRoutes(instance));
 
   try {
     await app.listen({ port: config.port, host: config.host });
