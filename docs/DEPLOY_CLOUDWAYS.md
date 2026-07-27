@@ -10,6 +10,37 @@ Docker is the normal recommended way to run WaGuard (see the main
 [README](../README.md)), but Cloudways PHP servers don't offer Docker, so this
 follows the README's "Run without Docker" path instead.
 
+## One-shot automated setup
+
+`scripts/provision-cloudways.sh` does everything below (steps 2–7) for you in
+a single run: installs Node + build tools + PM2, clones and builds the app,
+writes `.env` with the required production settings, starts it under PM2
+(with boot-persistence), wires up the Nginx reverse proxy, and issues a
+Let's Encrypt certificate — logging every step to a timestamped file under
+`~/waguard-provision-logs/`.
+
+It still needs three things to exist first, since nothing running over SSH
+can do them for you: the Cloudways server + a placeholder PHP app created in
+the Cloudways console, a DNS A record for your domain pointing at that
+server, and that domain attached to the placeholder app (Application →
+Domain Management) — see step 1 below. Once those are in place:
+
+```bash
+ssh <master_user>@<server_ip>
+curl -fsSL https://raw.githubusercontent.com/aicodeblocks/whatsApp-unofficial-api/main/scripts/provision-cloudways.sh -o provision-cloudways.sh
+chmod +x provision-cloudways.sh
+DOMAIN=wa.example.com LETSENCRYPT_EMAIL=you@example.com ./provision-cloudways.sh
+```
+
+Read the script's header comment for the full list of environment variables
+it accepts (`GIT_REPO`, `GIT_BRANCH`, `APP_DIR`, `NODE_PORT`, `SKIP_SSL`,
+etc. — all optional with sane defaults). It's idempotent, so re-running it
+after a failed step (check the log it prints the path to) picks up where it
+left off rather than duplicating work.
+
+The rest of this document explains the same steps manually, for anyone who'd
+rather run them by hand or needs to adapt one.
+
 ## Prerequisites
 
 - A Cloudways account and a **PHP Application** server (any provider — DigitalOcean,

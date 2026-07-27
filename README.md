@@ -32,9 +32,10 @@ npm run build && npm start
 
 Cloudways has no native Node.js stack, but WaGuard runs well on a Cloudways
 **PHP Application** server's underlying VPS via PM2 + Nginx reverse proxy —
-see [`docs/DEPLOY_CLOUDWAYS.md`](docs/DEPLOY_CLOUDWAYS.md) for the full,
-step-by-step guide. `scripts/deploy.sh` automates the rebuild-and-restart
-steps for updates.
+see [`docs/DEPLOY_CLOUDWAYS.md`](docs/DEPLOY_CLOUDWAYS.md) for the full guide.
+`scripts/provision-cloudways.sh` automates the entire initial setup in one
+run (with a log file); `scripts/deploy.sh` automates rebuild-and-restart for
+updates after that.
 
 ## Authentication
 

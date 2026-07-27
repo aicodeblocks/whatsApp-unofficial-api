@@ -2,7 +2,8 @@
 # Pulls the latest code, rebuilds, and reloads the PM2-managed process.
 # Run this ON THE SERVER, from the project root (e.g. ~/waguard):
 #   ./scripts/deploy.sh
-# See docs/DEPLOY_CLOUDWAYS.md and docs/DEPLOY_CLOUDWAYS_SIMPLE.md for setup.
+# See docs/DEPLOY_CLOUDWAYS.md for setup, or scripts/provision-cloudways.sh
+# for a one-shot script that does the initial setup this assumes already happened.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
