@@ -118,6 +118,11 @@ async function swaggerPlugin(app: FastifyInstance): Promise<void> {
             'Live per-number health (healthy / at_risk / flagged), cool-off windows, and the danger-sign event timeline. At-risk numbers auto-slow; flagged numbers rest in a cool-off. Bearer-token API.',
         },
         {
+          name: 'templates',
+          description:
+            'Reusable message content with {{placeholders}} and optional buttons. Buttons + media are mutually exclusive; a message with buttons always sends as text. Bearer-token API.',
+        },
+        {
           name: 'dashboard (internal)',
           description:
             'The built-in admin web UI (HTML pages, admin session-cookie auth). These are NOT for API clients — a downstream app authenticates with a Bearer token and uses the API groups above. Listed here for reference only.',

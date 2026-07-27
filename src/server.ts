@@ -14,12 +14,14 @@ import { healthApiRoutes } from './routes/api/health.js';
 import { messageApiRoutes } from './routes/api/messages.js';
 import { numberApiRoutes } from './routes/api/numbers.js';
 import { systemRoutes } from './routes/api/system.js';
+import { templateApiRoutes } from './routes/api/templates.js';
 import { contactDashboardRoutes } from './routes/dashboard/contacts.js';
 import { dashboardRoutes } from './routes/dashboard/index.js';
 import { healthDashboardRoutes } from './routes/dashboard/health.js';
 import { numberDashboardRoutes } from './routes/dashboard/numbers.js';
 import { portalRoutes } from './routes/dashboard/portal.js';
 import { queueDashboardRoutes } from './routes/dashboard/queue.js';
+import { templateDashboardRoutes } from './routes/dashboard/templates.js';
 import { webhookDashboardRoutes } from './routes/dashboard/webhooks.js';
 import { whatsappManager } from './whatsapp/manager.js';
 import { startQueue } from './whatsapp/queue.js';
@@ -67,12 +69,14 @@ async function main(): Promise<void> {
   await app.register(async (instance) => messageApiRoutes(instance));
   await app.register(async (instance) => contactApiRoutes(instance));
   await app.register(async (instance) => healthApiRoutes(instance));
+  await app.register(async (instance) => templateApiRoutes(instance));
   await app.register(async (instance) => dashboardRoutes(instance));
   await app.register(async (instance) => numberDashboardRoutes(instance));
   await app.register(async (instance) => queueDashboardRoutes(instance));
   await app.register(async (instance) => webhookDashboardRoutes(instance));
   await app.register(async (instance) => contactDashboardRoutes(instance));
   await app.register(async (instance) => healthDashboardRoutes(instance));
+  await app.register(async (instance) => templateDashboardRoutes(instance));
   await app.register(async (instance) => portalRoutes(instance));
 
   try {

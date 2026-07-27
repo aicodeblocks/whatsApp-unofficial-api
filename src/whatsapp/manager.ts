@@ -30,6 +30,7 @@ const {
   fetchLatestBaileysVersion,
   Browsers,
   downloadMediaMessage,
+  generateMessageID,
 } = baileys;
 
 interface LiveState {
@@ -359,5 +360,21 @@ export const whatsappManager = {
     }
     const sent = await st.sock.sendMessage(jid, content);
     return sent?.key?.id ?? null;
+  },
+
+  /**
+   * Low-level send for message shapes the friendly `sendMessage` content API
+   * doesn't support (e.g. a raw `buttonsMessage` proto — see `media.ts`).
+   * Bypasses `generateWAMessageContent` entirely via `sock.relayMessage`.
+   * Returns the message id we generated (used as our provider_message_id).
+   */
+  async relayRaw(id: string, jid: string, protoMessage: Record<string, unknown>): Promise<string | null> {
+    const st = live.get(id);
+    if (!st || st.status !== 'linked' || !st.sock) {
+      throw new Error('number_not_linked');
+    }
+    const messageId = generateMessageID();
+    await st.sock.relayMessage(jid, protoMessage, { messageId });
+    return messageId;
   },
 };

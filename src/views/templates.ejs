@@ -1,0 +1,158 @@
+<%- include('partials/head', { title: 'Templates', active: 'templates' }) %>
+<%
+  function esc(v){ return String(v==null?'':v).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];}); }
+  var e = editing; // null for create, a template object for edit
+%>
+<style>
+  .btn-row{ display:grid; grid-template-columns:140px 1fr 1fr; gap:8px; margin-bottom:8px; }
+  .btn-row select, .btn-row input{ margin:0; }
+  .tpl-card{ display:flex; flex-direction:column; gap:8px; }
+  .tpl-body-preview{ background:var(--panel-2); border-radius:var(--radius-sm); padding:10px 12px; font-size:13.5px; white-space:pre-wrap; }
+  #preview-box{ background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 14px; font-size:13.5px; white-space:pre-wrap; min-height:40px; }
+  .ph-inputs{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; }
+  .ph-inputs label{ margin:0; font-size:12px; }
+  .ph-inputs .ph-field{ display:flex; flex-direction:column; gap:2px; }
+  .ph-inputs input{ padding:6px 8px; font-size:13px; width:140px; }
+</style>
+
+<h1>Templates</h1>
+<p class="sub">Reusable message content with <code>{{placeholders}}</code>, optional media, and up to 3 interactive buttons.</p>
+
+<div class="card">
+  <h2><%= e ? 'Edit template' : 'New template' %></h2>
+  <form method="post" action="<%= e ? '/templates/' + e.id : '/templates' %>" enctype="multipart/form-data" id="tpl-form">
+    <div class="row" style="align-items:flex-end;">
+      <div style="flex:1; min-width:200px;">
+        <label for="name">Name</label>
+        <input id="name" name="name" type="text" value="<%= e ? esc(e.name) : '' %>" placeholder="e.g. Welcome message" />
+      </div>
+      <div style="min-width:160px;">
+        <label for="category">Category (optional)</label>
+        <input id="category" name="category" type="text" value="<%= e ? esc(e.category||'') : '' %>" placeholder="e.g. welcome" />
+      </div>
+    </div>
+
+    <label for="body">Body — use <code>{{name}}</code> or <code>{{phone}}</code> for placeholders</label>
+    <textarea id="body" name="body" rows="4" placeholder="Hi {{name}}, thanks for reaching out!"><%= e ? e.body : '' %></textarea>
+
+    <div id="ph-inputs" class="ph-inputs"></div>
+    <label>Live preview</label>
+    <div id="preview-box">—</div>
+
+    <div class="row" style="align-items:flex-end; margin-top:14px;">
+      <div style="flex:1; min-width:220px;">
+        <label for="media_url">Media URL (optional)</label>
+        <input id="media_url" name="media_url" type="text" value="<%= e ? esc(e.media_url||'') : '' %>" placeholder="https://example.com/image.jpg" />
+      </div>
+      <div style="flex:1; min-width:220px;">
+        <label for="file">Or upload media (optional)</label>
+        <input id="file" name="file" type="file" />
+      </div>
+      <div style="min-width:140px;">
+        <label for="media_type">Media type</label>
+        <select id="media_type" name="media_type">
+          <option value="image" <%= e && e.media_type==='image' ? 'selected' : '' %>>Image</option>
+          <option value="document" <%= !e || e.media_type==='document' ? 'selected' : '' %>>Document</option>
+          <option value="audio" <%= e && e.media_type==='audio' ? 'selected' : '' %>>Audio</option>
+          <option value="video" <%= e && e.media_type==='video' ? 'selected' : '' %>>Video</option>
+        </select>
+      </div>
+    </div>
+    <% if (e && e.media_path) { %><p class="muted-note">Currently has an uploaded file attached. Uploading a new one replaces it.</p><% } %>
+
+    <label style="margin-top:16px;">Buttons (optional, up to 3) — <span class="muted-note">note: media + buttons can't combine; a message with buttons sends as text only</span></label>
+    <% for (var i = 0; i < 3; i++) { var b = e && e.buttons[i] ? e.buttons[i] : null; %>
+      <div class="btn-row">
+        <select name="button_type_<%= i %>">
+          <option value="">— none —</option>
+          <option value="quick_reply" <%= b && b.type==='quick_reply' ? 'selected' : '' %>>Quick reply</option>
+          <option value="call" <%= b && b.type==='call' ? 'selected' : '' %>>Call</option>
+          <option value="link" <%= b && b.type==='link' ? 'selected' : '' %>>Link</option>
+        </select>
+        <input name="button_label_<%= i %>" type="text" placeholder="Button label" value="<%= b ? esc(b.label) : '' %>" />
+        <input name="button_payload_<%= i %>" type="text" placeholder="Reply value / phone / URL" value="<%= b ? esc(b.payload||'') : '' %>" />
+      </div>
+    <% } %>
+
+    <div class="row" style="margin-top:14px;">
+      <button type="submit"><%= e ? 'Save changes' : 'Create template' %></button>
+      <% if (e) { %><a class="btn secondary" href="/templates">Cancel</a><% } %>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>All templates</h2>
+  <% if (templates.length === 0) { %>
+    <span class="sub">No templates yet — create one above.</span>
+  <% } else { %>
+    <div class="stat-grid">
+      <% templates.forEach(function(t){ %>
+        <div class="card tpl-card" style="margin-bottom:0;">
+          <div class="row" style="justify-content:space-between;">
+            <strong><%= t.name %></strong>
+            <% if (t.category) { %><span class="pill"><%= t.category %></span><% } %>
+          </div>
+          <div class="tpl-body-preview"><%= t.body || '(empty)' %></div>
+          <% if (t.buttons.length) { %>
+            <div class="row" style="gap:6px;">
+              <% t.buttons.forEach(function(b){ %><span class="pill on"><%= b.label %></span><% }); %>
+            </div>
+          <% } %>
+          <div class="row">
+            <a class="btn secondary" href="/templates?edit=<%= t.id %>">Edit</a>
+            <form method="post" action="/templates/<%= t.id %>/delete" onsubmit="return confirm('Delete this template?');">
+              <button class="danger" type="submit">Delete</button>
+            </form>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  <% } %>
+</div>
+
+<script>
+(function () {
+  var bodyEl = document.getElementById('body');
+  var phWrap = document.getElementById('ph-inputs');
+  var preview = document.getElementById('preview-box');
+  var sampleValues = { name: 'Alex', phone: '15551234567' };
+
+  function extractPlaceholders(text) {
+    var found = [];
+    var re = /\{\{\s*(\w+)\s*\}\}/g, m;
+    while ((m = re.exec(text))) { if (found.indexOf(m[1].toLowerCase()) === -1) found.push(m[1].toLowerCase()); }
+    return found;
+  }
+
+  function renderInputs() {
+    var names = extractPlaceholders(bodyEl.value);
+    phWrap.innerHTML = '';
+    names.forEach(function (n) {
+      var field = document.createElement('div');
+      field.className = 'ph-field';
+      var label = document.createElement('label');
+      label.textContent = n;
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.value = sampleValues[n] || '';
+      input.addEventListener('input', function () { sampleValues[n] = input.value; renderPreview(); });
+      field.appendChild(label); field.appendChild(input);
+      phWrap.appendChild(field);
+    });
+    renderPreview();
+  }
+
+  function renderPreview() {
+    var text = bodyEl.value.replace(/\{\{\s*(\w+)\s*\}\}/g, function (_, n) {
+      return sampleValues[n.toLowerCase()] || '{{' + n + '}}';
+    });
+    preview.textContent = text || '—';
+  }
+
+  bodyEl.addEventListener('input', renderInputs);
+  renderInputs();
+})();
+</script>
+
+<%- include('partials/foot') %>

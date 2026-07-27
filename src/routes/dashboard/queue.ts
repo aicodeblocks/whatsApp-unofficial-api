@@ -11,6 +11,22 @@ import { dailyLimitFor } from '../../whatsapp/pacing.js';
 import { enqueueMessage, EnqueueError } from '../../whatsapp/enqueue.js';
 import { whatsappManager } from '../../whatsapp/manager.js';
 import { humanInTz } from '../../time.js';
+import { listTemplates } from '../../db/templates.js';
+import type { ButtonInput, ButtonType } from '../../db/buttons.js';
+
+const BUTTON_TYPES: ButtonType[] = ['quick_reply', 'call', 'link'];
+
+/** Collects up to 3 indexed button_type_N/button_label_N/button_payload_N form fields. */
+function collectButtons(body: Record<string, unknown>): ButtonInput[] {
+  const out: ButtonInput[] = [];
+  for (let i = 0; i < 3; i++) {
+    const type = body[`button_type_${i}`] as ButtonType | undefined;
+    const label = (body[`button_label_${i}`] as string | undefined)?.trim();
+    if (!type || !BUTTON_TYPES.includes(type) || !label) continue;
+    out.push({ type, label, payload: (body[`button_payload_${i}`] as string | undefined)?.trim() || null });
+  }
+  return out;
+}
 
 /** Shared doc metadata so these pages appear under the dashboard group. */
 const dash = (summary: string, description: string) => ({
@@ -45,26 +61,36 @@ export async function queueDashboardRoutes(app: FastifyInstance): Promise<void> 
         active: 'queue',
         numbers: overview(),
         messages: recentMessages(),
+        templates: listTemplates(),
         tz: config.displayTz,
         flash: null,
       });
     },
   );
 
-  app.post<{ Body: { number_id?: string; to?: string; type?: string; content?: string; caption?: string; media_url?: string; schedule_at?: string } }>(
+  app.post<{
+    Body: {
+      number_id?: string; to?: string; type?: string; content?: string; caption?: string;
+      media_url?: string; schedule_at?: string; template_id?: string;
+      [key: string]: unknown;
+    };
+  }>(
     '/queue/send',
-    { preHandler: app.requireAdmin, ...dash('Send test message (UI)', 'Enqueues a message from the dashboard test form.') },
+    { preHandler: app.requireAdmin, ...dash('Send test message (UI)', 'Enqueues a message from the dashboard test form. Optionally uses a template (template_id) and/or up to 3 ad-hoc buttons.') },
     async (req, reply) => {
       let flash: { ok: boolean; text: string };
       try {
+        const templateId = req.body.template_id || null;
         const msg = enqueueMessage({
           number_id: req.body.number_id ?? '',
           to: req.body.to ?? '',
           type: (req.body.type as never) ?? 'text',
-          content: req.body.content ?? null,
-          caption: req.body.caption ?? null,
-          media_url: req.body.media_url || null,
+          content: templateId ? null : req.body.content ?? null,
+          caption: templateId ? null : req.body.caption ?? null,
+          media_url: templateId ? null : req.body.media_url || null,
           schedule_at: req.body.schedule_at || null,
+          template_id: templateId,
+          buttons: collectButtons(req.body),
         });
         flash = { ok: true, text: `Queued message ${msg.id.slice(0, 8)} — watch its status below.` };
       } catch (err) {
@@ -74,6 +100,7 @@ export async function queueDashboardRoutes(app: FastifyInstance): Promise<void> 
         active: 'queue',
         numbers: overview(),
         messages: recentMessages(),
+        templates: listTemplates(),
         tz: config.displayTz,
         flash,
       });

@@ -126,7 +126,64 @@ export function runMigrations(db: Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_health_number ON health_events(number_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_health_type ON health_events(number_id, event_type, created_at);
+
+    -- v2 Milestone 3: contact lists/segments, CSV import records, the template
+    -- library, and interactive buttons (attachable to a template or a single
+    -- sent message via owner_type/owner_id — one table instead of two).
+
+    CREATE TABLE IF NOT EXISTS contact_lists (
+      id          TEXT PRIMARY KEY,
+      name        TEXT NOT NULL,
+      description TEXT,
+      created_at  TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS contact_list_members (
+      list_id    TEXT NOT NULL,
+      contact_id TEXT NOT NULL,
+      added_at   TEXT NOT NULL,
+      PRIMARY KEY (list_id, contact_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_list_members_contact ON contact_list_members(contact_id);
+
+    CREATE TABLE IF NOT EXISTS contact_imports (
+      id              TEXT PRIMARY KEY,
+      file_name       TEXT NOT NULL,
+      list_id         TEXT NOT NULL,
+      total_rows      INTEGER NOT NULL DEFAULT 0,
+      imported_count  INTEGER NOT NULL DEFAULT 0,
+      skipped_count   INTEGER NOT NULL DEFAULT 0,
+      invalid_count   INTEGER NOT NULL DEFAULT 0,
+      status          TEXT NOT NULL DEFAULT 'completed',
+      created_at      TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS templates (
+      id         TEXT PRIMARY KEY,
+      name       TEXT NOT NULL,
+      category   TEXT,
+      body       TEXT NOT NULL DEFAULT '',
+      media_path TEXT,
+      media_url  TEXT,
+      media_type TEXT NOT NULL DEFAULT 'document',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS buttons (
+      id         TEXT PRIMARY KEY,
+      owner_type TEXT NOT NULL,
+      owner_id   TEXT NOT NULL,
+      type       TEXT NOT NULL,
+      label      TEXT NOT NULL,
+      payload    TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_buttons_owner ON buttons(owner_type, owner_id, sort_order);
   `);
+
+  // v2 M3: link a sent message back to the template it came from (if any).
+  addColumnIfMissing(db, 'messages', 'template_id', 'TEXT');
 
   // Idempotent ALTERs add the per-number anti-ban / warm-up columns introduced
   // in Milestone 3 without disturbing the Milestone 2 table definition above.

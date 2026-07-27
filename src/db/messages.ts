@@ -21,6 +21,7 @@ export interface Message {
   created_at: string;
   sent_at: string | null;
   updated_at: string;
+  template_id: string | null;
 }
 
 export interface QueuedJob {
@@ -40,9 +41,9 @@ export interface QueuedJob {
 
 const insertMessageStmt = db.prepare(`
   INSERT INTO messages (id, number_id, contact_id, direction, type, content, caption,
-                        media_url, media_path, status, created_at, updated_at)
+                        media_url, media_path, status, created_at, updated_at, template_id)
   VALUES (@id, @number_id, @contact_id, 'outbound', @type, @content, @caption,
-          @media_url, @media_path, 'queued', @now, @now)
+          @media_url, @media_path, 'queued', @now, @now, @template_id)
 `);
 const getMessageStmt = db.prepare('SELECT * FROM messages WHERE id = ?');
 const getByProviderStmt = db.prepare('SELECT * FROM messages WHERE provider_message_id = ?');
@@ -66,6 +67,7 @@ export interface NewMessage {
   caption?: string | null;
   media_url?: string | null;
   media_path?: string | null;
+  template_id?: string | null;
 }
 
 export function createMessage(m: NewMessage): Message {
@@ -80,6 +82,7 @@ export function createMessage(m: NewMessage): Message {
     caption: m.caption ?? null,
     media_url: m.media_url ?? null,
     media_path: m.media_path ?? null,
+    template_id: m.template_id ?? null,
     now,
   });
   return getMessage(id)!;

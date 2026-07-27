@@ -1,6 +1,13 @@
+import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
+import type { Button } from '../db/buttons.js';
 import type { Message, MessageType } from '../db/messages.js';
+
+// Same CJS-interop pattern as manager.ts — only `proto` is needed here, to
+// build a raw buttonsMessage the friendly sendMessage() content API can't.
+const require = createRequire(import.meta.url);
+const { proto } = require('@whiskeysockets/baileys');
 
 const MIME_BY_EXT: Record<string, string> = {
   '.jpg': 'image/jpeg',
@@ -34,7 +41,13 @@ function guessMime(nameOrUrl: string, fallback: string): string {
  * - media by uploaded file → the raw bytes are read from disk into a Buffer.
  * - media by URL           → Baileys fetches it via `{ url }`.
  */
-export async function buildContent(msg: Message): Promise<Record<string, unknown>> {
+export async function buildContent(msg: Message, buttons: Button[] = []): Promise<Record<string, unknown>> {
+  // Buttons + media are mutually exclusive in v2 (see milestone-log): a message
+  // with buttons always sends as text + buttons, regardless of any media.
+  if (buttons.length) {
+    return buildButtonsContent(msg, buttons);
+  }
+
   if (msg.type === 'text') {
     return { text: msg.content ?? '' };
   }
@@ -51,6 +64,35 @@ export async function buildContent(msg: Message): Promise<Record<string, unknown
   const caption = msg.caption ?? undefined;
 
   return mediaContent(msg.type, source, nameHint, caption);
+}
+
+/**
+ * Builds a raw `buttonsMessage` proto (bypassing the friendly sendMessage()
+ * content API, which has no path for buttons at all — see manager.ts's
+ * relayRaw()). Text-only header (HeaderType.EMPTY = 1): media + buttons don't
+ * combine in v2. Every button is sent as a classic RESPONSE (quick-reply)
+ * button — the modern proto has no dedicated call/url button type; call/link
+ * buttons carry their intended action in `payload` as metadata (visible to
+ * API/webhook consumers) but render as a plain quick-reply on the device.
+ */
+function buildButtonsContent(msg: Message, buttons: Button[]): Record<string, unknown> {
+  const contentText = msg.content ?? msg.caption ?? '';
+  // Returns a fully-formed proto.Message instance (not a "friendly" content
+  // shape) — relayRaw() passes this straight to sock.relayMessage(), bypassing
+  // generateWAMessageContent entirely.
+  return proto.Message.create({
+    buttonsMessage: proto.Message.ButtonsMessage.create({
+      contentText,
+      headerType: 1, // EMPTY
+      buttons: buttons.map((b) =>
+        proto.Message.ButtonsMessage.Button.create({
+          buttonId: b.id,
+          buttonText: { displayText: b.label },
+          type: 1, // RESPONSE
+        }),
+      ),
+    }),
+  });
 }
 
 function mediaContent(

@@ -8,6 +8,8 @@
 import { resolveContact } from '../db/contacts.js';
 import { createJob, createMessage, type Message, type MessageType } from '../db/messages.js';
 import { getNumber } from '../db/numbers.js';
+import { type ButtonInput, setButtonsFor } from '../db/buttons.js';
+import { fillPlaceholders, getTemplate } from '../db/templates.js';
 
 /** Policy for recipients whose consent is 'unknown': 'allow' (default) | 'block'. */
 const UNKNOWN_POLICY = (process.env.CONSENT_UNKNOWN_POLICY ?? 'allow').toLowerCase() === 'block'
@@ -26,6 +28,10 @@ export interface EnqueueInput {
   media_url?: string | null;
   media_path?: string | null;
   schedule_at?: string | null;
+  /** Use a saved template's body/media/buttons as the message content. */
+  template_id?: string | null;
+  /** Ad-hoc buttons (ignored if template_id is set — the template's own buttons win). */
+  buttons?: ButtonInput[];
 }
 
 export class EnqueueError extends Error {
@@ -43,16 +49,55 @@ export function normalizePhone(raw: string): string {
   return digits;
 }
 
-export function enqueueMessage(input: EnqueueInput): Message {
-  const number = getNumber(input.number_id);
+export function enqueueMessage(rawInput: EnqueueInput): Message {
+  const number = getNumber(rawInput.number_id);
   if (!number) throw new EnqueueError('unknown_number', 'No such sending number.');
+
+  let input = rawInput;
+  let buttons: ButtonInput[] = rawInput.buttons ?? [];
+
+  // A template supplies its own content/media/buttons — ad-hoc content on the
+  // same request would be ambiguous, so require picking one or the other.
+  if (rawInput.template_id) {
+    if (rawInput.content || rawInput.media_url || rawInput.media_path) {
+      throw new EnqueueError(
+        'template_and_content',
+        'Choose either a template or ad-hoc content/media, not both.',
+      );
+    }
+    const template = getTemplate(rawInput.template_id);
+    if (!template) throw new EnqueueError('unknown_template', 'No such template.');
+
+    buttons = template.buttons.length ? template.buttons : buttons;
+    // Buttons + media are mutually exclusive in v2 — a template with buttons
+    // always sends as text, regardless of any media it also has.
+    const hasMedia = !buttons.length && !!(template.media_path || template.media_url);
+    input = {
+      ...rawInput,
+      type: hasMedia ? template.media_type : 'text',
+      content: hasMedia ? null : template.body,
+      caption: hasMedia ? template.body : null,
+      media_url: hasMedia ? template.media_url : null,
+      media_path: hasMedia ? template.media_path : null,
+    };
+  }
+
+  // Buttons force a text send regardless of type/media (mutually exclusive in v2).
+  if (buttons.length && input.type !== 'text') {
+    input = { ...input, type: 'text', media_url: null, media_path: null };
+  }
 
   const type = input.type ?? 'text';
   if (!ALL_TYPES.includes(type)) {
     throw new EnqueueError('invalid_type', `type must be one of: ${ALL_TYPES.join(', ')}.`);
   }
 
-  if (type === 'text') {
+  // Buttons force a text send regardless of type/media — validated below.
+  if (buttons.length) {
+    if (!input.content || !input.content.trim()) {
+      throw new EnqueueError('missing_content', 'A message with buttons needs non-empty text content.');
+    }
+  } else if (type === 'text') {
     if (!input.content || !input.content.trim()) {
       throw new EnqueueError('missing_content', 'A text message needs non-empty content.');
     }
@@ -98,15 +143,23 @@ export function enqueueMessage(input: EnqueueInput): Message {
     );
   }
 
+  // Fill {{name}}/{{phone}} from the resolved contact — applies to ad-hoc text
+  // too, not just templates, since there's no harm in it.
+  const nameField = contact.display_name ?? contact.phone_number;
+  const filledContent = input.content ? fillPlaceholders(input.content, { name: nameField, phone: contact.phone_number }) : input.content;
+  const filledCaption = input.caption ? fillPlaceholders(input.caption, { name: nameField, phone: contact.phone_number }) : input.caption;
+
   const message = createMessage({
     number_id: number.id,
     contact_id: contact.id,
     type,
-    content: type === 'text' ? input.content : null,
-    caption: type === 'text' ? null : input.caption ?? null,
+    content: type === 'text' ? filledContent : null,
+    caption: type === 'text' ? null : filledCaption ?? null,
     media_url: input.media_url ?? null,
     media_path: input.media_path ?? null,
+    template_id: rawInput.template_id ?? null,
   });
+  if (buttons.length) setButtonsFor('message', message.id, buttons);
   createJob(message.id, number.id, scheduledAt);
   return message;
 }

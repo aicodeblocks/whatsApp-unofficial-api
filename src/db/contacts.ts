@@ -84,6 +84,15 @@ export function setConsentByPhone(phone: string, status: ConsentStatus, source: 
   return getContact(contact.id)!;
 }
 
+// --- v2 M3: contact import needs to set a display name ---
+
+const setNameStmt = db.prepare('UPDATE contacts SET display_name = @name WHERE id = @id');
+
+/** Set (or clear, with null) a contact's display name. */
+export function updateContactName(id: string, name: string | null): void {
+  setNameStmt.run({ id, name });
+}
+
 /**
  * List contacts, newest first, optionally filtered by a search string matching
  * the phone number or display name, and/or a consent status.

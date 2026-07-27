@@ -22,6 +22,7 @@ import {
   type QueuedJob,
 } from '../db/messages.js';
 import { getContact, markContacted } from '../db/contacts.js';
+import { getButtonsFor } from '../db/buttons.js';
 import {
   dailyCountFor,
   ensureWarmupStarted,
@@ -181,8 +182,11 @@ async function releaseSend(
     await sleep(typing);
     await whatsappManager.sendPresence(numberId, jid, 'paused');
 
-    const content = await buildContent(message);
-    const providerId = await whatsappManager.sendMessage(numberId, jid, content);
+    const buttons = getButtonsFor('message', message.id);
+    const content = await buildContent(message, buttons);
+    const providerId = buttons.length
+      ? await whatsappManager.relayRaw(numberId, jid, content)
+      : await whatsappManager.sendMessage(numberId, jid, content);
 
     markMessageSent(messageId, providerId);
     advanceMessageStatus(messageId, 'sent');
