@@ -10,12 +10,6 @@ Docker is the normal recommended way to run WaGuard (see the main
 [README](../README.md)), but Cloudways PHP servers don't offer Docker, so this
 follows the README's "Run without Docker" path instead.
 
-> **Don't need a custom domain or HTTPS right now?** See
-> [`DEPLOY_CLOUDWAYS_SIMPLE.md`](DEPLOY_CLOUDWAYS_SIMPLE.md) for a simpler
-> setup that skips the Nginx reverse proxy entirely and hits the app directly
-> on its own port. This guide (with Nginx + SSL) is the one to use for
-> anything reachable by a downstream app or teammate over the internet.
-
 ## Prerequisites
 
 - A Cloudways account and a **PHP Application** server (any provider — DigitalOcean,
