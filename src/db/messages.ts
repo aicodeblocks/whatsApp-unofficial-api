@@ -151,6 +151,15 @@ export function listMessages(
   return db.prepare(sql).all(...params) as Message[];
 }
 
+/** Total message count, optionally filtered by direction (for the Overview page). */
+export function countMessages(direction?: 'inbound' | 'outbound'): number {
+  const sql = direction
+    ? 'SELECT COUNT(*) AS n FROM messages WHERE direction = ?'
+    : 'SELECT COUNT(*) AS n FROM messages';
+  const row = (direction ? db.prepare(sql).get(direction) : db.prepare(sql).get()) as { n: number };
+  return row.n;
+}
+
 export function markMessageSent(id: string, providerId: string | null): void {
   markSentStmt.run({ id, pid: providerId, now: new Date().toISOString() });
 }

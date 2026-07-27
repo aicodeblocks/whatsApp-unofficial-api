@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Central runtime configuration, read from environment variables with safe
@@ -8,6 +9,21 @@ import { resolve } from 'node:path';
  */
 
 const DATA_DIR = resolve(process.env.DATA_DIR ?? './data');
+
+/**
+ * The app version/build shown in the dashboard footer. Read from package.json
+ * at boot (falling back to "0.0.0" if it can't be read), so the shell always
+ * displays the version the container was built from.
+ */
+function resolveAppVersion(): string {
+  try {
+    const pkgPath = resolve(fileURLToPath(new URL('../package.json', import.meta.url)));
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { version?: string };
+    return pkg.version ?? '0.0.0';
+  } catch {
+    return process.env.npm_package_version ?? '0.0.0';
+  }
+}
 
 // Ensure the data directory (mounted as a Docker volume) exists on boot.
 if (!existsSync(DATA_DIR)) {
@@ -48,6 +64,8 @@ export const config = {
   cookieSecure: process.env.COOKIE_SECURE === 'true',
   /** Marketing-friendly name surfaced in the dashboard and docs. */
   appName: 'WaGuard',
+  /** App version/build (from package.json) shown in the dashboard footer. */
+  appVersion: resolveAppVersion(),
   /**
    * Decorative image shown on the login page. Defaults to a random-photo
    * service (a fresh image each page load). Set LOGIN_IMAGE_URL to your own,

@@ -1,8 +1,109 @@
 import type { FastifyInstance } from 'fastify';
 import { config } from '../../config.js';
+import { contactCounts } from '../../db/contacts.js';
+import { listHealthEvents } from '../../db/health.js';
+import { countMessages, jobCountsForNumber, listMessages } from '../../db/messages.js';
 import { isFirstRun, setAdminPassword, verifyAdminPassword } from '../../db/settings.js';
 import { createToken, listTokens, revokeToken } from '../../db/tokens.js';
+import { getEndpoint, recentDeliveries } from '../../db/webhooks.js';
+import { humanInTz } from '../../time.js';
 import { whatsappManager } from '../../whatsapp/manager.js';
+
+/** A single row in the Overview recent-activity feed. */
+interface ActivityItem {
+  kind: 'in' | 'out' | 'health' | 'hook';
+  main: string;
+  iso: string;
+  time: string;
+}
+
+/** Short, human labels for the health event types shown in the activity feed. */
+const HEALTH_LABELS: Record<string, string> = {
+  disconnect: 'Connection dropped',
+  relogin: 'Session logged out',
+  delivery_drop: 'Delivery drop detected',
+  failure_spike: 'Send-failure spike',
+  at_risk: 'Number went at-risk',
+  cooloff: 'Number placed in cool-off',
+  flagged: 'Number flagged',
+  recovered: 'Number recovered',
+  warmup_change: 'Warm-up advanced',
+};
+
+/** Build the Overview page's live status, health strip, and activity feed. */
+function buildOverview() {
+  const numbers = whatsappManager.list();
+  const linked = numbers.filter((n) => n.status === 'linked');
+  const atRisk = numbers.filter((n) => n.health_status === 'at_risk');
+  const flagged = numbers.filter((n) => n.health_status === 'flagged');
+  const queueDepth = numbers.reduce((sum, n) => sum + jobCountsForNumber(n.id).waiting, 0);
+
+  const inbound = countMessages('inbound');
+  const outbound = countMessages('outbound');
+  const contacts = contactCounts();
+
+  const endpoint = getEndpoint();
+  const deliveries = recentDeliveries(50);
+  const failed = deliveries.filter((d) => d.status === 'failed').length;
+  const pending = deliveries.filter((d) => d.status === 'pending').length;
+  const succeeded = deliveries.filter((d) => d.status === 'success').length;
+
+  // Status dots: active (green), idle (grey), attention (amber).
+  const dot = (active: boolean, attention = false) =>
+    attention ? 'attention' : active ? 'active' : 'idle';
+
+  const webhookState = !endpoint || !endpoint.active
+    ? { dot: 'idle', note: endpoint ? 'Endpoint disabled' : 'No endpoint configured' }
+    : failed > 0
+      ? { dot: 'attention', note: `${failed} recent failure${failed === 1 ? '' : 's'}` }
+      : { dot: 'active', note: succeeded > 0 ? 'Delivering cleanly' : 'Endpoint ready' };
+
+  const cards = [
+    { key: 'numbers', title: 'Numbers', href: '/numbers', val: `${linked.length}`, unit: `/ ${numbers.length} linked`,
+      note: numbers.length ? `${numbers.length} configured` : 'No numbers yet', dot: dot(linked.length > 0) },
+    { key: 'queue', title: 'Send & Queue', href: '/queue', val: `${queueDepth}`, unit: 'queued',
+      note: `${outbound} sent all-time`, dot: dot(queueDepth > 0) },
+    { key: 'receiving', title: 'Receiving', href: '/queue', val: `${inbound}`, unit: 'received',
+      note: 'Inbound messages captured', dot: dot(inbound > 0) },
+    { key: 'webhooks', title: 'Webhooks', href: '/webhooks', val: `${succeeded}`, unit: 'delivered',
+      note: webhookState.note, dot: webhookState.dot },
+    { key: 'health', title: 'Health', href: '/health', val: `${atRisk.length + flagged.length}`, unit: 'need attention',
+      note: flagged.length ? `${flagged.length} flagged` : atRisk.length ? `${atRisk.length} at-risk` : 'All healthy',
+      dot: dot(numbers.length > 0 && atRisk.length + flagged.length === 0, atRisk.length + flagged.length > 0) },
+    { key: 'contacts', title: 'Contacts', href: '/contacts', val: `${contacts.total}`, unit: 'contacts',
+      note: `${contacts.opted_in} opted-in · ${contacts.blocked} blocked`, dot: dot(contacts.total > 0) },
+  ];
+
+  const strip = [
+    { label: 'Numbers linked', val: `${linked.length}`, unit: `/ ${numbers.length}`, cls: '' },
+    { label: 'Queue depth', val: `${queueDepth}`, unit: '', cls: '' },
+    { label: 'At-risk numbers', val: `${atRisk.length + flagged.length}`, unit: '',
+      cls: flagged.length ? 'bad' : atRisk.length ? 'attention' : '' },
+    { label: 'Webhook health', val: failed > 0 ? `${failed}` : 'OK', unit: failed > 0 ? 'failing' : '',
+      cls: failed > 0 ? 'attention' : '' },
+  ];
+
+  // Merge recent messages, health events, and webhook deliveries into one feed.
+  const items: ActivityItem[] = [];
+  for (const m of listMessages(8)) {
+    const label = m.content ? m.content.replace(/\s+/g, ' ').slice(0, 60) : `[${m.type}]`;
+    items.push({
+      kind: m.direction === 'inbound' ? 'in' : 'out',
+      main: `${m.direction === 'inbound' ? 'Received' : 'Sent'}: ${label}`,
+      iso: m.created_at, time: humanInTz(m.created_at),
+    });
+  }
+  for (const e of listHealthEvents(undefined, 8)) {
+    items.push({ kind: 'health', main: HEALTH_LABELS[e.event_type] ?? e.event_type, iso: e.created_at, time: humanInTz(e.created_at) });
+  }
+  for (const d of recentDeliveries(8)) {
+    const verb = d.status === 'success' ? 'delivered' : d.status === 'failed' ? 'failed' : 'pending';
+    items.push({ kind: 'hook', main: `Webhook ${d.event_type} ${verb}`, iso: d.updated_at || d.created_at, time: humanInTz(d.updated_at || d.created_at) });
+  }
+  items.sort((a, b) => (a.iso < b.iso ? 1 : a.iso > b.iso ? -1 : 0));
+
+  return { cards, strip, activity: items.slice(0, 10), pending };
+}
 
 interface PasswordBody {
   password?: string;
@@ -74,13 +175,12 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // ---- Home overview -------------------------------------------------------
-  app.get('/', { preHandler: app.requireAdmin, ...dash('Dashboard home', 'HTML overview: number and token counts, links to docs.') }, async (_req, reply) => {
-    const numbers = whatsappManager.list();
+  app.get('/', { preHandler: app.requireAdmin, ...dash('Dashboard home', 'HTML overview: live status cards, system-health strip, and recent activity.') }, async (_req, reply) => {
+    const overview = buildOverview();
     return reply.view('home', {
       active: 'home',
       tokenCount: listTokens().filter((t) => t.active).length,
-      numberCount: numbers.length,
-      linkedCount: numbers.filter((n) => n.status === 'linked').length,
+      ...overview,
     });
   });
 

@@ -1,38 +1,73 @@
 <%- include('partials/head', { title: 'Overview', active: 'home' }) %>
-<h1>Overview</h1>
-<p class="sub">Your self-hosted WhatsApp API service is running.</p>
-
-<div class="card">
-  <div class="row" style="justify-content:space-between;">
-    <div>
-      <strong>Service status</strong>
-      <div class="sub" style="margin:2px 0 0;">API and dashboard are online.</div>
-    </div>
-    <span class="pill on">online</span>
+<div class="page-head">
+  <div>
+    <h1>Overview</h1>
+    <p class="sub">Live status of everything your WaGuard service is doing.</p>
+  </div>
+  <div class="quick-actions">
+    <a class="btn" href="/numbers">Link a number</a>
+    <a class="btn secondary" href="/queue">Send a test</a>
   </div>
 </div>
 
-<div class="card">
-  <strong>WhatsApp numbers</strong>
-  <div class="sub" style="margin:2px 0 0;"><%= linkedCount %> linked · <%= numberCount %> total · <a href="/numbers">manage numbers</a></div>
+<!-- System-health strip -->
+<div class="health-strip">
+  <% strip.forEach(function (m) { %>
+    <div class="metric <%= m.cls %>">
+      <div class="mlabel"><%= m.label %></div>
+      <div class="mval"><%= m.val %><% if (m.unit) { %> <small><%= m.unit %></small><% } %></div>
+    </div>
+  <% }); %>
+</div>
+
+<!-- Capability status cards -->
+<div class="stat-grid">
+  <% cards.forEach(function (c) { %>
+    <a class="status-card" href="<%= c.href %>">
+      <div class="sc-top">
+        <div class="sc-title"><%= c.title %></div>
+        <span class="status-dot <%= c.dot %>" title="<%= c.dot %>"></span>
+      </div>
+      <div class="sc-val"><%= c.val %> <small><%= c.unit %></small></div>
+      <div class="sc-note"><%= c.note %></div>
+    </a>
+  <% }); %>
 </div>
 
 <div class="card">
-  <strong>Active API tokens</strong>
-  <div class="sub" style="margin:2px 0 0;"><%= tokenCount %> active · <a href="/tokens">manage tokens</a></div>
+  <h2>Recent activity</h2>
+  <% if (!activity.length) { %>
+    <div class="empty">No activity yet. Link a number and send a message to see it here.</div>
+  <% } else { %>
+    <div class="activity-feed">
+      <% activity.forEach(function (a) { %>
+        <div class="activity-row">
+          <span class="aicon <%= a.kind %>">
+            <% if (a.kind === 'in') { %>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+            <% } else if (a.kind === 'out') { %>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+            <% } else if (a.kind === 'health') { %>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            <% } else { %>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 16.98h-5.99c-1.66 0-3.01-1.34-3.01-3s1.34-3 3.01-3H18"/><path d="m15 13.98 3 3-3 3"/><circle cx="6" cy="13.98" r="3"/></svg>
+            <% } %>
+          </span>
+          <div class="abody"><div class="amain"><%= a.main %></div></div>
+          <span class="atime"><%= a.time %></span>
+        </div>
+      <% }); %>
+    </div>
+  <% } %>
 </div>
 
 <div class="card">
-  <strong>API documentation</strong>
-  <p class="sub" style="margin:2px 0 12px;">Live, auto-generated docs your downstream apps can build against.</p>
-  <div class="row">
+  <h2>API for downstream apps</h2>
+  <p class="sub" style="margin:2px 0 14px;">Live, auto-generated docs your downstream apps can build against.</p>
+  <div class="quick-actions">
     <a class="btn secondary" href="/docs">Open API docs</a>
     <a class="btn secondary" href="/openapi.json">Download OpenAPI spec</a>
+    <a class="btn secondary" href="/webhooks">Configure webhooks</a>
   </div>
-</div>
-
-<div class="card">
-  <strong>Coming in later milestones</strong>
-  <p class="sub" style="margin:2px 0 0;">Linking WhatsApp numbers, sending with anti-ban pacing, receiving via webhooks, and health &amp; consent monitoring.</p>
 </div>
 <%- include('partials/foot') %>

@@ -38,6 +38,24 @@ async function main(): Promise<void> {
     viewExt: 'ejs',
   });
 
+  // Inject shared shell context into every server-rendered view so the branded
+  // header/footer (@fastify/view merges `reply.locals` into the render context,
+  // and EJS `include` inherits it) can show the linked-number indicator and app
+  // version without every route handler having to pass them. Skipped for the API
+  // and docs, which never render EJS views.
+  app.addHook('onRequest', async (req, reply) => {
+    const url = req.raw.url ?? '';
+    if (url.startsWith('/api') || url.startsWith('/openapi') || url.startsWith('/docs')) return;
+    const numbers = whatsappManager.list();
+    reply.locals = {
+      ...reply.locals,
+      appName: config.appName,
+      appVersion: config.appVersion,
+      numberCount: numbers.length,
+      linkedCount: numbers.filter((n) => n.status === 'linked').length,
+    };
+  });
+
   // Auth (admin sessions + API-token bearer) and auto-generated API docs.
   await app.register(authPlugin);
   await app.register(swaggerPlugin);

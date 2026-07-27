@@ -262,3 +262,37 @@ curl -X POST http://localhost:3000/api/v1/contacts/consent \
 ---
 
 **All five milestones are shipped — WaGuard v1 is feature-complete.** A v2 plan (dashboard redesign, downstream developer portal + live API console, contact import, templates, buttons, broadcasts, groups, analytics) lives in `_build_plan/v2/`.
+
+---
+
+# WaGuard v2 — Dashboard, Developer Portal & Scale
+
+v2 turns the working v1 service into a polished product surface and adds the deferred functional features. It ships in 5 milestones (`_build_plan/v2/`): **1** design system & dashboard shell · **2** developer portal (docs + live API console) · **3** contacts import + templates + buttons · **4** broadcasts + group messaging · **5** analytics & reporting.
+
+## What's here (v2 · Milestone 1) — Design system, branded shell & Overview
+
+A professional visual foundation applied to **every** dashboard page, plus a live Overview home that reflects the true state of everything the service does. No new API/functional surface — this is the shell later v2 milestones render inside.
+
+### The branded shell & design system
+
+- A cohesive **design system** — emerald-on-zinc palette as CSS tokens, refreshed cards, buttons, pills, tables, and page headers — so every page looks like one product.
+- A branded **top header** on every page: WaGuard logo mark + wordmark, a live **"N linked"** connection indicator, a **light/dark theme toggle**, and an account menu (API tokens, API docs, log out).
+- A refined **icon left-navigation** covering every area (Overview, Numbers, Send & Queue, Contacts, Webhooks, Health, API Tokens, API Docs), with Templates / Broadcasts / Analytics shown as **"Soon"** (they activate in v2 M3–M5).
+- A **branded footer** showing the app version (from `package.json`) and links to API Docs, Health, and status.
+- A persistent **light/dark theme** that follows the operating-system preference by default and remembers an explicit toggle choice (`localStorage`), with no flash-of-wrong-theme on load.
+- A **responsive** layout that holds down to tablet/phone width — the sidebar collapses behind a menu button.
+
+### The Overview home
+
+Opening the dashboard now shows live status at a glance:
+
+- A **system-health strip**: numbers linked, queue depth, at-risk numbers, and webhook delivery health.
+- A **status card per capability** (Numbers, Send & Queue, Receiving, Webhooks, Health, Contacts) — each with a real count and an **active / idle / needs-attention** status dot.
+- **Quick actions** (link a number, send a test, open docs, configure webhooks).
+- A **recent-activity feed** merging the latest sent/received messages, health events, and webhook deliveries.
+
+### Notes for maintainers
+
+- No new endpoints or env vars. The whole shell is server-rendered EJS; all styling stays inline in `src/views/partials/head.ejs` (no static-asset serving added).
+- Shared shell data (`appName`, `appVersion`, `numberCount`, `linkedCount`) is injected into every view by a single global `onRequest` hook in `src/server.ts` via `reply.locals` — individual routes don't pass it.
+- **Local run caveat:** `npm run dev` (tsx) fails on some hosts because a Baileys 7 transitive WASM dependency (`whatsapp-rust-bridge`) only exposes an ESM `import` condition that Node's CJS resolver rejects. Use the compiled path instead — `npm run build && node dist/server.js` — which is exactly what the Docker image runs.

@@ -27,6 +27,23 @@ const touchContactedStmt = db.prepare(`
    WHERE id = @id
 `);
 
+const countAllStmt = db.prepare('SELECT COUNT(*) AS n FROM contacts');
+const countByConsentStmt = db.prepare(
+  'SELECT COUNT(*) AS n FROM contacts WHERE consent_status = ?',
+);
+
+/** Total contacts, and a per-consent-status breakdown, for the Overview page. */
+export function contactCounts(): { total: number; opted_in: number; blocked: number; unknown: number } {
+  const total = (countAllStmt.get() as { n: number }).n;
+  const count = (status: ConsentStatus) => (countByConsentStmt.get(status) as { n: number }).n;
+  return {
+    total,
+    opted_in: count('opted_in'),
+    blocked: count('blocked'),
+    unknown: count('unknown'),
+  };
+}
+
 export function getContactByPhone(phone: string): Contact | undefined {
   return getByPhoneStmt.get(phone) as Contact | undefined;
 }

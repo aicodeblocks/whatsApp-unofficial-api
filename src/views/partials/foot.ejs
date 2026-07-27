@@ -1,6 +1,16 @@
 <% var chrome = (typeof chrome !== 'undefined') ? chrome : 'app'; %>
+<% var _ver = (typeof appVersion !== 'undefined') ? appVersion : '0.0.0'; %>
 <% if (chrome === 'app') { %>
-    </main>
+        </main>
+        <footer class="footer">
+          <span>WaGuard <span class="ver">v<%= _ver %></span></span>
+          <span class="foot-spacer"></span>
+          <a href="/docs">API Docs</a>
+          <a href="/health">Health</a>
+          <a href="/">Status</a>
+        </footer>
+      </div>
+    </div>
   </div>
 <% } else { %>
   </div></div>
