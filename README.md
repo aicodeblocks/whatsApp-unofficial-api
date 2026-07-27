@@ -332,3 +332,37 @@ CSV contact import into named lists, contact lists/segments, a reusable template
 - CSV import preview is stateless: valid rows round-trip through a hidden `rows_json` form field between the preview and confirm steps, no server-side session state.
 - Adding a route under a **brand-new** API tag (like `templates` here) needs one line each in `src/routes/dashboard/portal.ts`'s `TAG_ORDER`/`TAG_LABELS` for it to show up on `/developers` — routes added under an already-listed tag need nothing.
 - **Test-data isolation:** never copy `data/sessions/` when making an isolated host test-data directory — it holds live WhatsApp auth state, and a copied session can make a host test process attempt a second live connection as the same linked device.
+
+## What's here (v2 · Milestone 4) — Sending at scale: broadcasts + group messaging
+
+Bulk broadcast campaigns to a contact list and WhatsApp group messaging, both routed through the exact same anti-ban queue, pacing, health, and consent systems as a single send — not a parallel send path.
+
+- **Broadcast campaigns** (new `/broadcasts` page): build a campaign — name, sending number, target contact list, a saved template or inline text/media, optional buttons, optional future start time — and save it as a **draft** first. The draft view shows a recipient-count preview and an estimated send window under the number's current daily pacing limit before you commit anything.
+- **Launch, watch, and control**: launching fans the campaign out to every eligible recipient, paced like a single send. Live progress (queued/sent/delivered/read/failed) auto-refreshes; **pause**, **resume**, or **cancel** at any point. Blocked and consent-unknown contacts (per your policy) are automatically skipped and counted.
+- **WhatsApp group messaging**: sync the groups a linked number belongs to (with participant counts) and send a text, media, or templated message to any of them — through the same paced queue, buttons rendering as the same numbered-text-list fallback M3 established. Groups are **not** individually consent-tracked Contacts — no `{{placeholder}}` fill, no per-recipient consent check.
+- **Inbound group messages are now captured** (previously silently dropped), correctly attributed to the actual sending participant (not the group), flagged `is_group: true`, and pushed via the same `message.inbound` webhook. One deliberate exception: a "STOP" keyword typed inside a group chat does **not** auto-block that person's direct messages — a group opt-out isn't a personal one.
+- A **Broadcasts API and a Groups API** (`/api/v1/broadcasts/*`, `/api/v1/groups/*`) — a deliberate break from M3's dashboard-only precedent — let downstream systems create/launch/control campaigns and sync/send to groups programmatically, auto-documented in `/developers`.
+
+### Notes for maintainers
+
+- `messages.contact_id` had to become **nullable** (group messages have no individual contact) — SQLite can't relax a `NOT NULL` via `ALTER TABLE`, so `src/db/migrations.ts`'s `ensureMessagesContactIdNullable()` does a one-time guarded table rebuild on upgrade (no-op on fresh installs).
+- New tables: `broadcast_campaigns`, `groups`. `messages` gained nullable `group_id`/`broadcast_id`.
+- The natural reuse point for fanning out a campaign is `enqueueMessage()` itself (`src/whatsapp/broadcast.ts`'s `launchCampaign()`) — it already does consent/validation/template/placeholder handling in one call; broadcasts just loop it per recipient and count thrown `EnqueueError`s as skips, rather than re-implementing any of that logic.
+- Group sends go through a sibling `enqueueGroupMessage()` in `src/whatsapp/enqueue.ts` that shares template-resolution logic with `enqueueMessage()` but skips contact/consent entirely.
+- `src/whatsapp/queue.ts`'s worker gained a campaign pause/cancel gate and branches on `message.group_id` vs `message.contact_id` in `releaseSend` — group sends skip the `existsOnWhatsApp` presence check (not applicable to a group JID).
+
+## What's here (v2 · Milestone 5) — Analytics & reporting
+
+Date-range charts, KPI tiles, and CSV export — closing out v2. Built entirely on data v1–M4 already produce; nothing here changes send behavior.
+
+- A new **Analytics page** (date range + number filter, defaults to the last 30 days): KPI tiles (sent, delivery rate, read rate, failures, inbound), a sends-over-time chart (stacked by status), an inbound-volume chart, a health-incidents-over-time chart (stacked by severity), a per-number breakdown (chart + table), and a campaign-performance table.
+- **CSV export** of the selected range's per-number daily stats.
+- A read-only **Analytics API** (`/api/v1/analytics/summary|daily|campaigns|health`) mirroring the dashboard's data, auto-documented in `/developers`.
+- Charts are **hand-rolled inline SVG** with vanilla JS — no charting library was added, keeping the app dependency-light (no CDN calls anywhere in WaGuard, consistent with the inline-SVG icons and hand-rolled CSV parser already in the codebase).
+
+### Notes for maintainers
+
+- New table `daily_stats` — a per-number/per-day **cache** of message counts (`src/db/analytics.ts`), not a source of truth; it's lazily filled the first time a date range is viewed (`ensureDailyStatsFor()`) and read from cache thereafter, the same self-healing-on-read pattern M4's `refreshCampaignStatus()` uses. A 3-day "settle window" (today + the last 2 days) is always computed live, never cached, since anti-ban pacing/health cool-off can leave a message `queued` for a while past its creation day.
+- Day-bucketing is **display-timezone-aware** (`dateKeyInTz()` in `src/time.ts`), not UTC — a message's day bucket matches the operator's actual calendar day under `APP_TZ`, not a UTC-shifted one.
+- Message counts are bucketed by **current status** using `created_at`, not a status-transition event log (none exists) — "delivered on day X" means "created on day X and currently delivered," consistent with how the existing `activitySnapshot()` health helper already reasons about message counts.
+- `campaignPerformanceInRange()` batches the **existing** `campaignProgress()` from M4's `db/broadcasts.ts` — no new per-campaign counting logic was written.
