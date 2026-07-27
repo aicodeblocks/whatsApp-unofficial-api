@@ -47,7 +47,7 @@ export function runMigrations(db: Database): void {
     CREATE TABLE IF NOT EXISTS messages (
       id                  TEXT PRIMARY KEY,
       number_id           TEXT NOT NULL,
-      contact_id          TEXT NOT NULL,
+      contact_id          TEXT,
       direction           TEXT NOT NULL DEFAULT 'outbound',
       type                TEXT NOT NULL DEFAULT 'text',
       content             TEXT,
@@ -180,10 +180,56 @@ export function runMigrations(db: Database): void {
       sort_order INTEGER NOT NULL DEFAULT 0
     );
     CREATE INDEX IF NOT EXISTS idx_buttons_owner ON buttons(owner_type, owner_id, sort_order);
+
+    -- v2 Milestone 4: broadcast campaigns (bulk sends to a contact list, under
+    -- the same anti-ban queue) and synced WhatsApp groups (send-only).
+
+    CREATE TABLE IF NOT EXISTS broadcast_campaigns (
+      id                TEXT PRIMARY KEY,
+      name              TEXT NOT NULL,
+      number_id         TEXT NOT NULL,
+      list_id           TEXT NOT NULL,
+      template_id       TEXT,
+      content           TEXT,
+      caption           TEXT,
+      media_url         TEXT,
+      media_path        TEXT,
+      type              TEXT NOT NULL DEFAULT 'text',
+      schedule_at       TEXT,
+      status            TEXT NOT NULL DEFAULT 'draft',
+      total_recipients  INTEGER NOT NULL DEFAULT 0,
+      skipped_count     INTEGER NOT NULL DEFAULT 0,
+      created_at        TEXT NOT NULL,
+      updated_at        TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS groups (
+      id                 TEXT PRIMARY KEY,
+      number_id          TEXT NOT NULL,
+      provider_group_id  TEXT NOT NULL,
+      subject            TEXT,
+      participant_count  INTEGER NOT NULL DEFAULT 0,
+      last_synced_at     TEXT,
+      created_at         TEXT NOT NULL,
+      UNIQUE(number_id, provider_group_id)
+    );
   `);
+
+  // v2 M4: existing installs created `messages.contact_id` as NOT NULL (M3's
+  // original schema); group messages have no individual contact, so it must
+  // become nullable. ADD COLUMN can't relax NOT NULL, so rebuild the table.
+  // No-op on fresh installs, where the CREATE TABLE above already made it
+  // nullable.
+  ensureMessagesContactIdNullable(db);
 
   // v2 M3: link a sent message back to the template it came from (if any).
   addColumnIfMissing(db, 'messages', 'template_id', 'TEXT');
+
+  // v2 M4: link a message to the WhatsApp group it was sent to / received
+  // from, and to the broadcast campaign that generated it (both nullable —
+  // most messages are neither).
+  addColumnIfMissing(db, 'messages', 'group_id', 'TEXT');
+  addColumnIfMissing(db, 'messages', 'broadcast_id', 'TEXT');
 
   // Idempotent ALTERs add the per-number anti-ban / warm-up columns introduced
   // in Milestone 3 without disturbing the Milestone 2 table definition above.
@@ -207,4 +253,51 @@ function addColumnIfMissing(db: Database, table: string, column: string, decl: s
   if (!cols.some((c) => c.name === column)) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
   }
+}
+
+/**
+ * One-time rebuild for installs created before v2 M4, where `contact_id` was
+ * declared NOT NULL. Group messages have no individual contact, so the column
+ * must become nullable — SQLite can't relax a NOT NULL via ALTER, so the table
+ * is recreated, data copied across, and the old one dropped. Guarded by a
+ * PRAGMA check so it runs at most once and is a no-op on fresh installs.
+ */
+function ensureMessagesContactIdNullable(db: Database): void {
+  const cols = db.prepare("PRAGMA table_info(messages)").all() as Array<{ name: string; notnull: number }>;
+  const contactCol = cols.find((c) => c.name === 'contact_id');
+  if (!contactCol || contactCol.notnull === 0) return;
+
+  // `template_id` (v2 M3) may already exist on the table being rebuilt — carry
+  // it across explicitly so upgrading installs don't lose that data.
+  const hasTemplateId = cols.some((c) => c.name === 'template_id');
+
+  db.exec(`
+    CREATE TABLE messages_new (
+      id                  TEXT PRIMARY KEY,
+      number_id           TEXT NOT NULL,
+      contact_id          TEXT,
+      direction           TEXT NOT NULL DEFAULT 'outbound',
+      type                TEXT NOT NULL DEFAULT 'text',
+      content             TEXT,
+      caption             TEXT,
+      media_url           TEXT,
+      media_path          TEXT,
+      status              TEXT NOT NULL DEFAULT 'queued',
+      provider_message_id TEXT,
+      failure_reason      TEXT,
+      created_at          TEXT NOT NULL,
+      sent_at             TEXT,
+      updated_at          TEXT NOT NULL,
+      template_id         TEXT
+    );
+    INSERT INTO messages_new (id, number_id, contact_id, direction, type, content, caption,
+      media_url, media_path, status, provider_message_id, failure_reason, created_at, sent_at, updated_at${hasTemplateId ? ', template_id' : ''})
+    SELECT id, number_id, contact_id, direction, type, content, caption,
+      media_url, media_path, status, provider_message_id, failure_reason, created_at, sent_at, updated_at${hasTemplateId ? ', template_id' : ''}
+    FROM messages;
+    DROP TABLE messages;
+    ALTER TABLE messages_new RENAME TO messages;
+    CREATE INDEX IF NOT EXISTS idx_messages_number ON messages(number_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_messages_provider ON messages(provider_message_id);
+  `);
 }

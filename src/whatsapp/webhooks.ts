@@ -58,12 +58,13 @@ function mediaUrlFor(message: Message): string | null {
 }
 
 function inboundPayload(message: Message, isStop: boolean) {
-  const contact = getContact(message.contact_id);
+  const contact = message.contact_id ? getContact(message.contact_id) : undefined;
   return {
     message_id: message.id,
     number_id: message.number_id,
     direction: 'inbound' as const,
     from: contact?.phone_number ?? null,
+    is_group: !!message.group_id,
     type: message.type,
     content: message.content,
     caption: message.caption,
@@ -77,12 +78,13 @@ function inboundPayload(message: Message, isStop: boolean) {
 }
 
 function statusPayload(message: Message, status: MessageStatus) {
-  const contact = getContact(message.contact_id);
+  const contact = message.contact_id ? getContact(message.contact_id) : undefined;
   return {
     message_id: message.id,
     number_id: message.number_id,
     direction: message.direction,
     to: contact?.phone_number ?? null,
+    is_group: !!message.group_id,
     status,
     provider_message_id: message.provider_message_id,
     failure_reason: message.failure_reason,

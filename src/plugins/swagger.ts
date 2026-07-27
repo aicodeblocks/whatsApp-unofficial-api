@@ -123,6 +123,16 @@ async function swaggerPlugin(app: FastifyInstance): Promise<void> {
             'Reusable message content with {{placeholders}} and optional buttons. Buttons + media are mutually exclusive; a message with buttons always sends as text. Bearer-token API.',
         },
         {
+          name: 'broadcasts',
+          description:
+            'Bulk campaigns to a contact list, paced by the same anti-ban queue as a single send. Created as a draft, then launched; blocked/non-consented recipients are skipped automatically. Bearer-token API.',
+        },
+        {
+          name: 'groups',
+          description:
+            'Sync the WhatsApp groups a linked number belongs to and send messages to them through the paced queue. Groups are not individually consent-tracked contacts. Bearer-token API.',
+        },
+        {
           name: 'dashboard (internal)',
           description:
             'The built-in admin web UI (HTML pages, admin session-cookie auth). These are NOT for API clients — a downstream app authenticates with a Bearer token and uses the API groups above. Listed here for reference only.',

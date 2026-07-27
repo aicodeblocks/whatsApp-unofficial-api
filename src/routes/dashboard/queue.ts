@@ -12,21 +12,7 @@ import { enqueueMessage, EnqueueError } from '../../whatsapp/enqueue.js';
 import { whatsappManager } from '../../whatsapp/manager.js';
 import { humanInTz } from '../../time.js';
 import { listTemplates } from '../../db/templates.js';
-import type { ButtonInput, ButtonType } from '../../db/buttons.js';
-
-const BUTTON_TYPES: ButtonType[] = ['quick_reply', 'call', 'link'];
-
-/** Collects up to 3 indexed button_type_N/button_label_N/button_payload_N form fields. */
-function collectButtons(body: Record<string, unknown>): ButtonInput[] {
-  const out: ButtonInput[] = [];
-  for (let i = 0; i < 3; i++) {
-    const type = body[`button_type_${i}`] as ButtonType | undefined;
-    const label = (body[`button_label_${i}`] as string | undefined)?.trim();
-    if (!type || !BUTTON_TYPES.includes(type) || !label) continue;
-    out.push({ type, label, payload: (body[`button_payload_${i}`] as string | undefined)?.trim() || null });
-  }
-  return out;
-}
+import { collectButtons } from '../../lib/buttons-form.js';
 
 /** Shared doc metadata so these pages appear under the dashboard group. */
 const dash = (summary: string, description: string) => ({
@@ -42,11 +28,11 @@ function overview() {
   }));
 }
 
-/** Enrich recent messages with the recipient phone for display. */
+/** Enrich recent messages with the recipient phone (or group flag) for display. */
 function recentMessages() {
   return listMessages(30).map((m) => ({
     ...m,
-    to: getContact(m.contact_id)?.phone_number ?? '—',
+    to: m.group_id ? 'Group' : (m.contact_id ? getContact(m.contact_id)?.phone_number : null) ?? '—',
     updated_display: humanInTz(m.updated_at),
   }));
 }

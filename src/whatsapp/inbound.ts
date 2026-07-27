@@ -9,6 +9,7 @@ import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { config } from '../config.js';
 import { markContacted, resolveContact, setConsent } from '../db/contacts.js';
+import { getGroupByProviderId } from '../db/groups.js';
 import {
   createInboundMessage,
   getMessageByProviderId,
@@ -132,6 +133,7 @@ export async function handleInbound(
   fromPhone: string,
   raw: any,
   download: DownloadFn,
+  groupJid: string | null = null,
 ): Promise<void> {
   const extracted = extractMessage(raw?.message);
   if (!extracted) return; // nothing we store for this message type
@@ -159,6 +161,11 @@ export async function handleInbound(
     }
   }
 
+  // A group JID only resolves to a `group_id` if it's already been synced
+  // (Broadcasts page); otherwise the message is still captured, just without
+  // a link to a `groups` row.
+  const group = groupJid ? getGroupByProviderId(numberId, groupJid) : undefined;
+
   const message = createInboundMessage({
     number_id: numberId,
     contact_id: contact.id,
@@ -167,10 +174,13 @@ export async function handleInbound(
     caption: extracted.caption,
     media_path: mediaPath,
     provider_message_id: raw?.key?.id ?? null,
+    group_id: group?.id ?? null,
   });
   markContacted(contact.id);
 
-  const isStop = isStopKeyword(extracted.content);
+  // STOP-style auto-block only applies to direct messages — saying "stop" in
+  // a group chat isn't a personal opt-out signal from that sender.
+  const isStop = !groupJid && isStopKeyword(extracted.content);
   // Consent auto-block (Milestone 5): an inbound STOP-style keyword withdraws
   // consent — block the contact so no further messages go out to them.
   if (isStop && contact.consent_status !== 'blocked') {

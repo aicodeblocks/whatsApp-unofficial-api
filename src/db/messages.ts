@@ -8,7 +8,7 @@ export type JobState = 'waiting' | 'processing' | 'done' | 'failed';
 export interface Message {
   id: string;
   number_id: string;
-  contact_id: string;
+  contact_id: string | null;
   direction: 'outbound' | 'inbound';
   type: MessageType;
   content: string | null;
@@ -22,6 +22,8 @@ export interface Message {
   sent_at: string | null;
   updated_at: string;
   template_id: string | null;
+  group_id: string | null;
+  broadcast_id: string | null;
 }
 
 export interface QueuedJob {
@@ -41,9 +43,11 @@ export interface QueuedJob {
 
 const insertMessageStmt = db.prepare(`
   INSERT INTO messages (id, number_id, contact_id, direction, type, content, caption,
-                        media_url, media_path, status, created_at, updated_at, template_id)
+                        media_url, media_path, status, created_at, updated_at, template_id,
+                        group_id, broadcast_id)
   VALUES (@id, @number_id, @contact_id, 'outbound', @type, @content, @caption,
-          @media_url, @media_path, 'queued', @now, @now, @template_id)
+          @media_url, @media_path, 'queued', @now, @now, @template_id,
+          @group_id, @broadcast_id)
 `);
 const getMessageStmt = db.prepare('SELECT * FROM messages WHERE id = ?');
 const getByProviderStmt = db.prepare('SELECT * FROM messages WHERE provider_message_id = ?');
@@ -61,13 +65,16 @@ const markFailedStmt = db.prepare(`
 
 export interface NewMessage {
   number_id: string;
-  contact_id: string;
+  /** Null for group sends (no individual contact). */
+  contact_id?: string | null;
   type: MessageType;
   content?: string | null;
   caption?: string | null;
   media_url?: string | null;
   media_path?: string | null;
   template_id?: string | null;
+  group_id?: string | null;
+  broadcast_id?: string | null;
 }
 
 export function createMessage(m: NewMessage): Message {
@@ -76,13 +83,15 @@ export function createMessage(m: NewMessage): Message {
   insertMessageStmt.run({
     id,
     number_id: m.number_id,
-    contact_id: m.contact_id,
+    contact_id: m.contact_id ?? null,
     type: m.type,
     content: m.content ?? null,
     caption: m.caption ?? null,
     media_url: m.media_url ?? null,
     media_path: m.media_path ?? null,
     template_id: m.template_id ?? null,
+    group_id: m.group_id ?? null,
+    broadcast_id: m.broadcast_id ?? null,
     now,
   });
   return getMessage(id)!;
@@ -90,9 +99,9 @@ export function createMessage(m: NewMessage): Message {
 
 const insertInboundStmt = db.prepare(`
   INSERT INTO messages (id, number_id, contact_id, direction, type, content, caption,
-                        media_path, status, provider_message_id, created_at, updated_at)
+                        media_path, status, provider_message_id, created_at, updated_at, group_id)
   VALUES (@id, @number_id, @contact_id, 'inbound', @type, @content, @caption,
-          @media_path, 'delivered', @provider_message_id, @now, @now)
+          @media_path, 'delivered', @provider_message_id, @now, @now, @group_id)
 `);
 
 export interface NewInboundMessage {
@@ -103,6 +112,8 @@ export interface NewInboundMessage {
   caption?: string | null;
   media_path?: string | null;
   provider_message_id?: string | null;
+  /** Set when the message arrived in a synced WhatsApp group. */
+  group_id?: string | null;
 }
 
 /** Store a received message. Inbound messages are 'delivered' on arrival. */
@@ -118,6 +129,7 @@ export function createInboundMessage(m: NewInboundMessage): Message {
     caption: m.caption ?? null,
     media_path: m.media_path ?? null,
     provider_message_id: m.provider_message_id ?? null,
+    group_id: m.group_id ?? null,
     now,
   });
   return getMessage(id)!;

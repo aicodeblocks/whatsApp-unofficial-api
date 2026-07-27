@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { config } from '../../config.js';
 
 /** Order the endpoint reference groups the same way the tags are declared in swagger.ts. */
-const TAG_ORDER = ['system', 'numbers', 'messages', 'contacts', 'templates', 'health'];
+const TAG_ORDER = ['system', 'numbers', 'messages', 'contacts', 'templates', 'broadcasts', 'groups', 'health'];
 
 /** Paths where a live JSON round-trip in the console doesn't make sense
  *  (multipart upload, or binary/HTML responses) — still documented, just not
@@ -104,6 +104,8 @@ const TAG_LABELS: Record<string, string> = {
   messages: 'Messages',
   contacts: 'Contacts',
   templates: 'Templates',
+  broadcasts: 'Broadcasts',
+  groups: 'Groups',
   health: 'Health',
 };
 

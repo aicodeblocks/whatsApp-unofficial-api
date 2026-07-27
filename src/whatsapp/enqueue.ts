@@ -4,8 +4,14 @@
  * (recipient format, required fields), enforces consent (blocked recipients are
  * rejected; unknown recipients follow CONSENT_UNKNOWN_POLICY), and defers the
  * "is this number actually on WhatsApp?" check to the queue (just before send).
+ *
+ * `enqueueGroupMessage` is the group-send counterpart: it shares template
+ * resolution and validation with `enqueueMessage` but skips the
+ * contact/consent/placeholder machinery entirely — a WhatsApp group isn't an
+ * individually consent-tracked Contact.
  */
 import { resolveContact } from '../db/contacts.js';
+import { getGroup } from '../db/groups.js';
 import { createJob, createMessage, type Message, type MessageType } from '../db/messages.js';
 import { getNumber } from '../db/numbers.js';
 import { type ButtonInput, setButtonsFor } from '../db/buttons.js';
@@ -18,21 +24,6 @@ const UNKNOWN_POLICY = (process.env.CONSENT_UNKNOWN_POLICY ?? 'allow').toLowerCa
 
 const MEDIA_TYPES: MessageType[] = ['image', 'document', 'audio', 'video'];
 const ALL_TYPES: MessageType[] = ['text', ...MEDIA_TYPES];
-
-export interface EnqueueInput {
-  number_id: string;
-  to: string;
-  type: MessageType;
-  content?: string | null;
-  caption?: string | null;
-  media_url?: string | null;
-  media_path?: string | null;
-  schedule_at?: string | null;
-  /** Use a saved template's body/media/buttons as the message content. */
-  template_id?: string | null;
-  /** Ad-hoc buttons (ignored if template_id is set — the template's own buttons win). */
-  buttons?: ButtonInput[];
-}
 
 export class EnqueueError extends Error {
   constructor(public code: string, message: string) {
@@ -49,82 +40,130 @@ export function normalizePhone(raw: string): string {
   return digits;
 }
 
-export function enqueueMessage(rawInput: EnqueueInput): Message {
-  const number = getNumber(rawInput.number_id);
-  if (!number) throw new EnqueueError('unknown_number', 'No such sending number.');
+/** Ad-hoc content/media, or a template_id — the shape both send paths share. */
+interface RawContent {
+  type: MessageType;
+  content?: string | null;
+  caption?: string | null;
+  media_url?: string | null;
+  media_path?: string | null;
+  template_id?: string | null;
+  buttons?: ButtonInput[];
+}
 
-  let input = rawInput;
-  let buttons: ButtonInput[] = rawInput.buttons ?? [];
+interface ResolvedContent {
+  type: MessageType;
+  content: string | null;
+  caption: string | null;
+  media_url: string | null;
+  media_path: string | null;
+  buttons: ButtonInput[];
+}
 
-  // A template supplies its own content/media/buttons — ad-hoc content on the
-  // same request would be ambiguous, so require picking one or the other.
-  if (rawInput.template_id) {
-    if (rawInput.content || rawInput.media_url || rawInput.media_path) {
+/**
+ * Resolves a template (or ad-hoc content) into a concrete type/content/media
+ * shape, applying the same rules everywhere: a template supplies its own
+ * content and can't be mixed with ad-hoc content; buttons always force a text
+ * send; and the resulting type/content/media combination must be well-formed.
+ * Shared by `enqueueMessage` and `enqueueGroupMessage`.
+ */
+function resolveContent(raw: RawContent): ResolvedContent {
+  let buttons: ButtonInput[] = raw.buttons ?? [];
+  let type = raw.type;
+  let content = raw.content ?? null;
+  let caption = raw.caption ?? null;
+  let media_url = raw.media_url ?? null;
+  let media_path = raw.media_path ?? null;
+
+  if (raw.template_id) {
+    if (raw.content || raw.media_url || raw.media_path) {
       throw new EnqueueError(
         'template_and_content',
         'Choose either a template or ad-hoc content/media, not both.',
       );
     }
-    const template = getTemplate(rawInput.template_id);
+    const template = getTemplate(raw.template_id);
     if (!template) throw new EnqueueError('unknown_template', 'No such template.');
 
     buttons = template.buttons.length ? template.buttons : buttons;
     // Buttons + media are mutually exclusive in v2 — a template with buttons
     // always sends as text, regardless of any media it also has.
     const hasMedia = !buttons.length && !!(template.media_path || template.media_url);
-    input = {
-      ...rawInput,
-      type: hasMedia ? template.media_type : 'text',
-      content: hasMedia ? null : template.body,
-      caption: hasMedia ? template.body : null,
-      media_url: hasMedia ? template.media_url : null,
-      media_path: hasMedia ? template.media_path : null,
-    };
+    type = hasMedia ? template.media_type : 'text';
+    content = hasMedia ? null : template.body;
+    caption = hasMedia ? template.body : null;
+    media_url = hasMedia ? template.media_url : null;
+    media_path = hasMedia ? template.media_path : null;
   }
 
   // Buttons force a text send regardless of type/media (mutually exclusive in v2).
-  if (buttons.length && input.type !== 'text') {
-    input = { ...input, type: 'text', media_url: null, media_path: null };
+  if (buttons.length && type !== 'text') {
+    type = 'text';
+    media_url = null;
+    media_path = null;
   }
 
-  const type = input.type ?? 'text';
   if (!ALL_TYPES.includes(type)) {
     throw new EnqueueError('invalid_type', `type must be one of: ${ALL_TYPES.join(', ')}.`);
   }
 
-  // Buttons force a text send regardless of type/media — validated below.
   if (buttons.length) {
-    if (!input.content || !input.content.trim()) {
+    if (!content || !content.trim()) {
       throw new EnqueueError('missing_content', 'A message with buttons needs non-empty text content.');
     }
   } else if (type === 'text') {
-    if (!input.content || !input.content.trim()) {
+    if (!content || !content.trim()) {
       throw new EnqueueError('missing_content', 'A text message needs non-empty content.');
     }
     // Guard against the common mistake of filling a media URL/file but leaving
     // Type on "text" — that would silently drop the media. Fail loudly instead.
-    if (input.media_url || input.media_path) {
+    if (media_url || media_path) {
       throw new EnqueueError(
         'type_media_mismatch',
         'Type is "text" but a media URL/file was provided. Select a media type (image, document, audio, or video) to send media, or remove the media.',
       );
     }
-  } else if (!input.media_url && !input.media_path) {
+  } else if (!media_url && !media_path) {
     throw new EnqueueError('missing_media', `A ${type} message needs media_url or an uploaded file.`);
   }
 
-  const phone = normalizePhone(input.to);
+  return { type, content, caption, media_url, media_path, buttons };
+}
 
-  // Scheduled send: must parse and be in the future (else send now).
-  let scheduledAt = new Date().toISOString();
-  if (input.schedule_at) {
-    const t = Date.parse(input.schedule_at);
-    if (!Number.isFinite(t)) {
-      throw new EnqueueError('invalid_schedule', 'schedule_at must be an ISO-8601 timestamp.');
-    }
-    if (t > Date.now()) scheduledAt = new Date(t).toISOString();
+/** Parses an optional schedule_at into an ISO timestamp; "now" if absent or already past. */
+function resolveScheduledAt(scheduleAt: string | null | undefined): string {
+  if (!scheduleAt) return new Date().toISOString();
+  const t = Date.parse(scheduleAt);
+  if (!Number.isFinite(t)) {
+    throw new EnqueueError('invalid_schedule', 'schedule_at must be an ISO-8601 timestamp.');
   }
+  return t > Date.now() ? new Date(t).toISOString() : new Date().toISOString();
+}
 
+export interface EnqueueInput {
+  number_id: string;
+  to: string;
+  type: MessageType;
+  content?: string | null;
+  caption?: string | null;
+  media_url?: string | null;
+  media_path?: string | null;
+  schedule_at?: string | null;
+  /** Use a saved template's body/media/buttons as the message content. */
+  template_id?: string | null;
+  /** Ad-hoc buttons (ignored if template_id is set — the template's own buttons win). */
+  buttons?: ButtonInput[];
+  /** Links this message back to the broadcast campaign that generated it. */
+  broadcast_id?: string | null;
+}
+
+export function enqueueMessage(rawInput: EnqueueInput): Message {
+  const number = getNumber(rawInput.number_id);
+  if (!number) throw new EnqueueError('unknown_number', 'No such sending number.');
+
+  const resolved = resolveContent(rawInput);
+  const phone = normalizePhone(rawInput.to);
+  const scheduledAt = resolveScheduledAt(rawInput.schedule_at);
   const contact = resolveContact(phone);
 
   // Consent guardrails — the top ban trigger is messaging people who don't
@@ -146,20 +185,70 @@ export function enqueueMessage(rawInput: EnqueueInput): Message {
   // Fill {{name}}/{{phone}} from the resolved contact — applies to ad-hoc text
   // too, not just templates, since there's no harm in it.
   const nameField = contact.display_name ?? contact.phone_number;
-  const filledContent = input.content ? fillPlaceholders(input.content, { name: nameField, phone: contact.phone_number }) : input.content;
-  const filledCaption = input.caption ? fillPlaceholders(input.caption, { name: nameField, phone: contact.phone_number }) : input.caption;
+  const filledContent = resolved.content
+    ? fillPlaceholders(resolved.content, { name: nameField, phone: contact.phone_number })
+    : resolved.content;
+  const filledCaption = resolved.caption
+    ? fillPlaceholders(resolved.caption, { name: nameField, phone: contact.phone_number })
+    : resolved.caption;
 
   const message = createMessage({
     number_id: number.id,
     contact_id: contact.id,
-    type,
-    content: type === 'text' ? filledContent : null,
-    caption: type === 'text' ? null : filledCaption ?? null,
-    media_url: input.media_url ?? null,
-    media_path: input.media_path ?? null,
+    type: resolved.type,
+    content: resolved.type === 'text' ? filledContent : null,
+    caption: resolved.type === 'text' ? null : filledCaption ?? null,
+    media_url: resolved.media_url,
+    media_path: resolved.media_path,
+    template_id: rawInput.template_id ?? null,
+    broadcast_id: rawInput.broadcast_id ?? null,
+  });
+  if (resolved.buttons.length) setButtonsFor('message', message.id, resolved.buttons);
+  createJob(message.id, number.id, scheduledAt);
+  return message;
+}
+
+export interface EnqueueGroupInput {
+  number_id: string;
+  group_id: string;
+  type: MessageType;
+  content?: string | null;
+  caption?: string | null;
+  media_url?: string | null;
+  media_path?: string | null;
+  schedule_at?: string | null;
+  template_id?: string | null;
+  buttons?: ButtonInput[];
+}
+
+/**
+ * Group counterpart to `enqueueMessage`. No consent/contact resolution and no
+ * `{{placeholder}}` fill (a group isn't a Contact with a name/phone) — the
+ * message still goes through the same paced queue as everything else.
+ */
+export function enqueueGroupMessage(rawInput: EnqueueGroupInput): Message {
+  const number = getNumber(rawInput.number_id);
+  if (!number) throw new EnqueueError('unknown_number', 'No such sending number.');
+  const group = getGroup(rawInput.group_id);
+  if (!group || group.number_id !== number.id) {
+    throw new EnqueueError('unknown_group', 'No such group for this number.');
+  }
+
+  const resolved = resolveContent(rawInput);
+  const scheduledAt = resolveScheduledAt(rawInput.schedule_at);
+
+  const message = createMessage({
+    number_id: number.id,
+    contact_id: null,
+    group_id: group.id,
+    type: resolved.type,
+    content: resolved.type === 'text' ? resolved.content : null,
+    caption: resolved.type === 'text' ? null : resolved.caption,
+    media_url: resolved.media_url,
+    media_path: resolved.media_path,
     template_id: rawInput.template_id ?? null,
   });
-  if (buttons.length) setButtonsFor('message', message.id, buttons);
+  if (resolved.buttons.length) setButtonsFor('message', message.id, resolved.buttons);
   createJob(message.id, number.id, scheduledAt);
   return message;
 }

@@ -1,0 +1,173 @@
+<%- include('partials/head', { title: 'Broadcasts', active: 'broadcasts' }) %>
+<%
+  function esc(v){ return String(v==null?'':v).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];}); }
+  function statusPill(s){
+    if(s==='sending')   return '<span class="pill linked">sending</span>';
+    if(s==='scheduled') return '<span class="pill warn">scheduled</span>';
+    if(s==='paused')    return '<span class="pill warn">paused</span>';
+    if(s==='completed') return '<span class="pill linked">completed</span>';
+    if(s==='cancelled') return '<span class="pill bad">cancelled</span>';
+    return '<span class="pill">draft</span>';
+  }
+%>
+<style>
+  .btn-row{ display:grid; grid-template-columns:140px 1fr 1fr; gap:8px; margin-bottom:8px; }
+  .btn-row select, .btn-row input{ margin:0; }
+</style>
+
+<h1>Broadcasts</h1>
+<p class="sub">Bulk campaigns to a contact list, and messages to synced WhatsApp groups — both paced by the same anti-ban queue as a single send.</p>
+
+<% if (flash) { %>
+  <div class="alert <%= flash.ok ? 'ok' : 'error' %>"><%= flash.text %></div>
+<% } %>
+
+<div class="card">
+  <h2>New campaign</h2>
+  <% if (linked.length === 0) { %>
+    <p class="muted-note">No linked numbers yet. Link one on the <a href="/numbers">Numbers</a> page first.</p>
+  <% } else if (lists.length === 0) { %>
+    <p class="muted-note">No contact lists yet. Import contacts into a list on the <a href="/contacts">Contacts</a> page first.</p>
+  <% } else { %>
+  <form method="post" action="/broadcasts">
+    <div class="row" style="align-items:flex-end;">
+      <div style="flex:1; min-width:200px;">
+        <label for="name">Campaign name</label>
+        <input id="name" name="name" type="text" placeholder="e.g. October promo" />
+      </div>
+      <div style="flex:1; min-width:180px;">
+        <label for="number_id">From number</label>
+        <select id="number_id" name="number_id">
+          <% linked.forEach(function(n){ %>
+            <option value="<%= n.id %>"><%= esc(n.label) %><%= n.phone_number ? ' (+'+esc(n.phone_number)+')' : '' %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div style="flex:1; min-width:180px;">
+        <label for="list_id">Target list</label>
+        <select id="list_id" name="list_id">
+          <% lists.forEach(function(l){ %>
+            <option value="<%= l.id %>"><%= esc(l.name) %> (<%= l.member_count %>)</option>
+          <% }); %>
+        </select>
+      </div>
+    </div>
+
+    <div class="row" style="align-items:flex-end;">
+      <div style="min-width:130px;">
+        <label for="type">Type</label>
+        <select id="type" name="type">
+          <option value="text">text</option>
+          <option value="image">image (URL)</option>
+          <option value="document">document (URL)</option>
+          <option value="audio">audio (URL)</option>
+          <option value="video">video (URL)</option>
+        </select>
+      </div>
+      <div style="min-width:220px;">
+        <label for="schedule_at">Schedule (optional)</label>
+        <input id="schedule_at" name="schedule_at" type="datetime-local" />
+      </div>
+    </div>
+    <label for="content">Text (for type=text) — supports <code>{{name}}</code>/<code>{{phone}}</code></label>
+    <input id="content" name="content" type="text" placeholder="Hi {{name}}, ..." />
+    <div class="row" style="align-items:flex-end;">
+      <div style="flex:1; min-width:220px;">
+        <label for="media_url">Media URL (for media types)</label>
+        <input id="media_url" name="media_url" type="text" placeholder="https://example.com/image.jpg" />
+      </div>
+      <div style="flex:1; min-width:160px;">
+        <label for="caption">Caption (media)</label>
+        <input id="caption" name="caption" type="text" placeholder="optional" />
+      </div>
+    </div>
+
+    <label for="template_id">Use a template (optional) — fills text/media/buttons above</label>
+    <select id="template_id" name="template_id">
+      <option value="">— none, use ad-hoc content above —</option>
+      <% templates.forEach(function(t){ %><option value="<%= t.id %>"><%= esc(t.name) %></option><% }); %>
+    </select>
+
+    <label style="margin-top:14px;">Attach buttons (optional, up to 3) — <span class="muted-note">renders as a numbered text list, not native WhatsApp buttons</span></label>
+    <% for (var i = 0; i < 3; i++) { %>
+      <div class="btn-row">
+        <select name="button_type_<%= i %>">
+          <option value="">— none —</option>
+          <option value="quick_reply">Quick reply</option>
+          <option value="call">Call</option>
+          <option value="link">Link</option>
+        </select>
+        <input name="button_label_<%= i %>" type="text" placeholder="Button label" />
+        <input name="button_payload_<%= i %>" type="text" placeholder="Reply value / phone / URL" />
+      </div>
+    <% } %>
+
+    <div style="margin-top:14px;"><button type="submit">Save as draft</button></div>
+    <p class="muted-note" style="margin:10px 0 0;">Saved as a draft — you'll see the recipient count and an estimated send window before launching.</p>
+  </form>
+  <% } %>
+</div>
+
+<h3 style="margin:22px 0 8px;">Campaigns</h3>
+<% if (campaigns.length === 0) { %>
+  <div class="card"><span class="sub">No campaigns yet — create one above.</span></div>
+<% } %>
+<% campaigns.forEach(function(c){ %>
+  <div class="card">
+    <div class="row" style="justify-content:space-between; align-items:flex-start;">
+      <div>
+        <strong><a href="/broadcasts/<%= c.id %>"><%= esc(c.name) %></a></strong>
+        <%- statusPill(c.status) %>
+      </div>
+      <span class="muted-note"><%= c.total_recipients %> recipients<% if (c.skipped_count) { %>, <%= c.skipped_count %> skipped<% } %></span>
+    </div>
+    <% if (c.status !== 'draft') { %>
+    <div class="row" style="gap:18px; margin-top:12px;">
+      <span class="muted-note">Queued: <strong><%= c.progress.queued %></strong></span>
+      <span class="muted-note">Sent: <strong><%= c.progress.sent %></strong></span>
+      <span class="muted-note">Delivered: <strong><%= c.progress.delivered %></strong></span>
+      <span class="muted-note">Read: <strong><%= c.progress.read %></strong></span>
+      <span class="muted-note">Failed: <strong style="<%= c.progress.failed>0?'color:var(--danger)':'' %>"><%= c.progress.failed %></strong></span>
+    </div>
+    <% } %>
+  </div>
+<% }); %>
+
+<h3 style="margin:22px 0 8px;">Groups</h3>
+<% groups.forEach(function(g){ %>
+  <div class="card">
+    <div class="row" style="justify-content:space-between; align-items:flex-start;">
+      <div>
+        <strong><%= esc(g.number.label) %></strong>
+        <% if (g.number.phone_number) { %><code>+<%= esc(g.number.phone_number) %></code><% } %>
+      </div>
+      <form method="post" action="/broadcasts/groups/sync">
+        <input type="hidden" name="number_id" value="<%= g.number.id %>" />
+        <button type="submit" class="secondary">Sync groups</button>
+      </form>
+    </div>
+    <% if (g.rows.length === 0) { %>
+      <p class="muted-note" style="margin-top:10px;">No groups synced yet.</p>
+    <% } else { %>
+      <div class="stat-grid" style="margin-top:12px;">
+        <% g.rows.forEach(function(row){ %>
+          <div class="card" style="margin-bottom:0;">
+            <strong><%= esc(row.subject || row.provider_group_id) %></strong>
+            <p class="muted-note"><%= row.participant_count %> participants</p>
+            <form method="post" action="/broadcasts/groups/<%= row.id %>/send">
+              <input name="content" type="text" placeholder="Message text" style="margin-bottom:6px;" />
+              <select name="template_id" style="margin-bottom:6px;">
+                <option value="">— none, use text above —</option>
+                <% templates.forEach(function(t){ %><option value="<%= t.id %>"><%= esc(t.name) %></option><% }); %>
+              </select>
+              <input type="hidden" name="type" value="text" />
+              <button type="submit" class="secondary">Send</button>
+            </form>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+  </div>
+<% }); %>
+
+<%- include('partials/foot') %>

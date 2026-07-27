@@ -143,24 +143,36 @@ async function connect(id: string): Promise<void> {
   sock.ev.on('message-receipt.update', onStatus);
 
   // Inbound messages. `notify` = a genuinely new message (vs history sync
-  // 'append'). We skip our own echoes, groups, and status broadcasts.
+  // 'append'). We skip our own echoes and status/newsletter broadcasts, but
+  // (as of v2 M4) keep group messages — captured and flagged as group.
   sock.ev.on('messages.upsert', (payload: any) => {
     if (payload?.type !== 'notify') return;
     for (const raw of payload.messages ?? []) {
       const remote: string | undefined = raw?.key?.remoteJid;
       if (raw?.key?.fromMe || !remote) continue;
-      if (remote.endsWith('@g.us') || remote === 'status@broadcast' || remote.endsWith('@newsletter')) {
-        continue;
+      if (remote === 'status@broadcast' || remote.endsWith('@newsletter')) continue;
+
+      const isGroup = remote.endsWith('@g.us');
+      let fromPhone: string | null;
+      if (isGroup) {
+        // The group is the chat; the actual sender is `participant` (or its
+        // LID-alt counterpart, mirroring remoteJidAlt below).
+        const participant: string | undefined = raw?.key?.participant;
+        const participantAlt: string | undefined = raw?.key?.participantAlt;
+        const senderJid =
+          participant?.endsWith('@s.whatsapp.net') || !participantAlt ? participant : participantAlt;
+        fromPhone = jidToPhone(senderJid);
+      } else {
+        // WhatsApp may address a 1:1 chat by LID (<id>@lid) instead of the phone
+        // JID; in that case the real phone-number JID is carried in remoteJidAlt.
+        const phoneJid =
+          remote.endsWith('@s.whatsapp.net') || !raw?.key?.remoteJidAlt ? remote : raw.key.remoteJidAlt;
+        fromPhone = jidToPhone(phoneJid);
       }
-      // WhatsApp may address a 1:1 chat by LID (<id>@lid) instead of the phone
-      // JID; in that case the real phone-number JID is carried in remoteJidAlt.
-      const phoneJid =
-        remote.endsWith('@s.whatsapp.net') || !raw?.key?.remoteJidAlt ? remote : raw.key.remoteJidAlt;
-      const fromPhone = jidToPhone(phoneJid);
       if (!fromPhone) continue;
       const download: (m: any) => Promise<Buffer> = (m) =>
         downloadMediaMessage(m, 'buffer', {}, { logger: silentLogger, reuploadRequest: sock.updateMediaMessage });
-      handleInbound(id, fromPhone, raw, download).catch(() => {
+      handleInbound(id, fromPhone, raw, download, isGroup ? remote : null).catch(() => {
         /* never let one bad inbound message crash the socket handler */
       });
     }
@@ -359,5 +371,25 @@ export const whatsappManager = {
     }
     const sent = await st.sock.sendMessage(jid, content);
     return sent?.key?.id ?? null;
+  },
+
+  /**
+   * List the WhatsApp groups this linked number belongs to. Returns an empty
+   * array (rather than throwing) if the number isn't linked or the lookup
+   * fails — group sync is a manual, retryable dashboard action.
+   */
+  async listGroups(id: string): Promise<Array<{ jid: string; subject: string; participantCount: number }>> {
+    const sock = live.get(id)?.sock;
+    if (!sock || typeof sock.groupFetchAllParticipating !== 'function') return [];
+    try {
+      const map = await sock.groupFetchAllParticipating();
+      return Object.entries(map as Record<string, any>).map(([jid, meta]) => ({
+        jid,
+        subject: meta?.subject ?? jid,
+        participantCount: Array.isArray(meta?.participants) ? meta.participants.length : 0,
+      }));
+    } catch {
+      return [];
+    }
   },
 };

@@ -23,6 +23,8 @@ import {
 } from '../db/messages.js';
 import { getContact, markContacted } from '../db/contacts.js';
 import { getButtonsFor } from '../db/buttons.js';
+import { getCampaign } from '../db/broadcasts.js';
+import { getGroup } from '../db/groups.js';
 import {
   dailyCountFor,
   ensureWarmupStarted,
@@ -96,6 +98,20 @@ async function processJob(job: QueuedJob): Promise<void> {
     return;
   }
 
+  // Broadcast campaign gate: a cancelled campaign's remaining jobs are failed
+  // outright; a paused one is held (same shape as the per-number pause below).
+  if (message.broadcast_id) {
+    const campaign = getCampaign(message.broadcast_id);
+    if (campaign?.status === 'cancelled') {
+      setJobState(job.id, 'failed');
+      markMessageFailed(message.id, 'campaign_cancelled');
+      return;
+    }
+    if (campaign?.status === 'paused') {
+      return holdJob(job, now, pacing.retryBackoffMs, 'campaign_paused');
+    }
+  }
+
   // Paused queue: hold without consuming an attempt.
   if (number.queue_paused) {
     return holdJob(job, now, pacing.retryBackoffMs, 'queue_paused');
@@ -153,25 +169,42 @@ async function releaseSend(
 ): Promise<void> {
   setJobState(job.id, 'processing');
   const message = getMessage(messageId)!;
-  const contact = getContact(message.contact_id);
-  if (!contact) {
-    setJobState(job.id, 'failed');
-    markMessageFailed(messageId, 'contact_missing');
-    return;
+
+  let jid: string;
+  let contact: ReturnType<typeof getContact> = undefined;
+
+  if (message.group_id) {
+    const group = getGroup(message.group_id);
+    if (!group) {
+      setJobState(job.id, 'failed');
+      markMessageFailed(messageId, 'group_missing');
+      return;
+    }
+    jid = group.provider_group_id;
+  } else {
+    contact = getContact(message.contact_id!);
+    if (!contact) {
+      setJobState(job.id, 'failed');
+      markMessageFailed(messageId, 'contact_missing');
+      return;
+    }
+
+    // Don't waste a real send on a number that isn't on WhatsApp. The lookup is
+    // a cheap presence query (not a message); a null result means "couldn't
+    // tell", so we let the send proceed rather than block on a transient
+    // lookup failure. Not applicable to group sends — the group JID itself
+    // is the destination.
+    const onWa = await whatsappManager.existsOnWhatsApp(numberId, contact.phone_number);
+    if (onWa === false) {
+      setJobState(job.id, 'failed');
+      markMessageFailed(messageId, 'not_on_whatsapp');
+      emitMessageStatus(messageId, 'failed');
+      return;
+    }
+
+    jid = phoneToJid(contact.phone_number);
   }
 
-  // Don't waste a real send on a number that isn't on WhatsApp. The lookup is a
-  // cheap presence query (not a message); a null result means "couldn't tell",
-  // so we let the send proceed rather than block on a transient lookup failure.
-  const onWa = await whatsappManager.existsOnWhatsApp(numberId, contact.phone_number);
-  if (onWa === false) {
-    setJobState(job.id, 'failed');
-    markMessageFailed(messageId, 'not_on_whatsapp');
-    emitMessageStatus(messageId, 'failed');
-    return;
-  }
-
-  const jid = phoneToJid(contact.phone_number);
   const bodyLen = (message.content ?? message.caption ?? '').length || 8;
   const typing = typingDurationMs(bodyLen);
   setJobAppliedDelay(job.id, typing);
@@ -189,7 +222,7 @@ async function releaseSend(
     markMessageSent(messageId, providerId);
     advanceMessageStatus(messageId, 'sent');
     emitMessageStatus(messageId, 'sent');
-    markContacted(contact.id);
+    if (contact) markContacted(contact.id);
     const iso = new Date().toISOString();
     ensureWarmupStarted(numberId, iso);
     recordDailySend(numberId, todayStr());

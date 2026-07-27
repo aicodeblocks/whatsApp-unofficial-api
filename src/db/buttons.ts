@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { db } from './index.js';
 
 export type ButtonType = 'quick_reply' | 'call' | 'link';
-export type ButtonOwnerType = 'template' | 'message';
+export type ButtonOwnerType = 'template' | 'message' | 'campaign';
 
 export interface Button {
   id: string;

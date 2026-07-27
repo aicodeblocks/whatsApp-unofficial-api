@@ -1,0 +1,89 @@
+<%- include('partials/head', { title: campaign.name, active: 'broadcasts' }) %>
+<%
+  function esc(v){ return String(v==null?'':v).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];}); }
+  function statusPill(s){
+    if(s==='sending')   return '<span class="pill linked">sending</span>';
+    if(s==='scheduled') return '<span class="pill warn">scheduled</span>';
+    if(s==='paused')    return '<span class="pill warn">paused</span>';
+    if(s==='completed') return '<span class="pill linked">completed</span>';
+    if(s==='cancelled') return '<span class="pill bad">cancelled</span>';
+    return '<span class="pill">draft</span>';
+  }
+%>
+<p><a href="/broadcasts">&larr; Back to Broadcasts</a></p>
+<h1><%= esc(campaign.name) %> <%- statusPill(campaign.status) %></h1>
+
+<% if (flash) { %>
+  <div class="alert <%= flash.ok ? 'ok' : 'error' %>"><%= flash.text %></div>
+<% } %>
+
+<% if (buttons.length) { %>
+  <div class="row" style="gap:6px; margin-bottom:10px;">
+    <% buttons.forEach(function(b){ %><span class="pill on"><%= esc(b.label) %></span><% }); %>
+  </div>
+<% } %>
+
+<% if (campaign.status === 'draft') { %>
+  <div class="card" id="draft-panel">
+    <h3 style="margin:0 0 10px;">Ready to launch</h3>
+    <div class="row" style="gap:18px;">
+      <span class="muted-note">Recipients (approx.): <strong><%= recipients %></strong></span>
+      <span class="muted-note">Current daily limit for this number: <strong><%= dailyLimit %></strong>/day</span>
+      <% if (estimatedDays !== null) { %>
+        <span class="muted-note">Estimated send window: <strong><%= estimatedDays %></strong> day<%= estimatedDays===1?'':'s' %> (approximation, assumes no health slowdowns)</span>
+      <% } %>
+    </div>
+    <p class="muted-note" style="margin-top:8px;">Blocked contacts (and unknown-consent contacts, if your policy requires opt-in) are skipped automatically at launch.</p>
+    <form method="post" action="/broadcasts/<%= campaign.id %>/launch" style="margin-top:14px;" onsubmit="return confirm('Launch this campaign to ~' + <%= recipients %> + ' recipients?');">
+      <button type="submit">Launch campaign</button>
+    </form>
+  </div>
+<% } else { %>
+  <div class="card" id="progress-panel">
+    <div class="row" style="gap:18px;">
+      <span class="muted-note">Total: <strong><%= campaign.total_recipients %></strong></span>
+      <span class="muted-note">Skipped at launch: <strong><%= campaign.skipped_count %></strong></span>
+      <span class="muted-note">Queued: <strong><%= progress.queued %></strong></span>
+      <span class="muted-note">Sent: <strong><%= progress.sent %></strong></span>
+      <span class="muted-note">Delivered: <strong><%= progress.delivered %></strong></span>
+      <span class="muted-note">Read: <strong><%= progress.read %></strong></span>
+      <span class="muted-note">Failed: <strong style="<%= progress.failed>0?'color:var(--danger)':'' %>"><%= progress.failed %></strong></span>
+    </div>
+    <div class="row" style="gap:8px; margin-top:14px;">
+      <% if (campaign.status === 'sending' || campaign.status === 'scheduled') { %>
+        <form method="post" action="/broadcasts/<%= campaign.id %>/pause"><button type="submit" class="secondary">Pause</button></form>
+      <% } %>
+      <% if (campaign.status === 'paused') { %>
+        <form method="post" action="/broadcasts/<%= campaign.id %>/resume"><button type="submit" class="secondary">Resume</button></form>
+      <% } %>
+      <% if (campaign.status === 'sending' || campaign.status === 'scheduled' || campaign.status === 'paused') { %>
+        <form method="post" action="/broadcasts/<%= campaign.id %>/cancel" onsubmit="return confirm('Cancel this campaign? Remaining recipients will not be sent to.');">
+          <button type="submit" class="danger">Cancel</button>
+        </form>
+      <% } %>
+    </div>
+  </div>
+
+  <script>
+  // Live progress polling — same fetch + DOMParser + innerHTML-swap pattern as
+  // the Send & Queue page. Reloads the whole page HTML server-side and swaps
+  // just the progress panel in, so it always reflects current campaign status.
+  (function(){
+    if (<%- JSON.stringify(campaign.status === 'completed' || campaign.status === 'cancelled') %>) return;
+    setInterval(function(){
+      fetch(window.location.pathname, { headers: { 'X-Requested-With': 'fetch' } })
+        .then(function(r){ return r.text(); })
+        .then(function(html){
+          var doc = new DOMParser().parseFromString(html, 'text/html');
+          ['progress-panel'].forEach(function(id){
+            var fresh = doc.getElementById(id);
+            var cur = document.getElementById(id);
+            if (fresh && cur) cur.innerHTML = fresh.innerHTML;
+          });
+        }).catch(function(){});
+    }, 4000);
+  })();
+  </script>
+<% } %>
+
+<%- include('partials/foot') %>
