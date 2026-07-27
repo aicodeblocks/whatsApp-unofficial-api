@@ -312,3 +312,23 @@ A human-friendly API reference at **`/developers`**, distinct from the raw Swagg
 - No new endpoints, dependencies, or env vars. `src/routes/dashboard/portal.ts` builds the whole view model from `app.swagger()` at request time (grouping by tag, walking each operation's parameters/requestBody, and deriving a JSON example from each body schema) — it reuses the exact schemas already declared on every route in `src/routes/api/*.ts`.
 - The portal route (`GET /developers`) is public, same posture as `/docs` — downstream developers won't have an admin session.
 - The console is vanilla JS embedded in `src/views/portal.ejs` (no build step, no client dependency) — the endpoint list it needs is embedded server-side as a `<script type="application/json">` blob.
+
+## What's here (v2 · Milestone 3) — Contacts & content: import + lists + templates + buttons
+
+CSV contact import into named lists, contact lists/segments, a reusable template library with `{{placeholders}}`, and interactive buttons on templates and the single-send form.
+
+- **CSV contact import** on the Contacts page: upload a CSV — phone/name/consent columns are auto-detected by header name — and see a validation preview flagging invalid phone numbers and duplicates before anything is saved; confirm to import the valid rows into a chosen or new named list.
+- **Contact lists / segments**: create named lists, add/remove any contact to/from a list inline, and filter the Contacts table by list alongside the existing consent filter.
+- **Template library** (new `/templates` page): create/edit/delete templates with `{{name}}`/`{{phone}}` placeholders, an optional media attachment (file or URL), and a live preview that substitutes sample values as you type.
+- **Interactive buttons** (quick-reply / call / link, up to 3): attachable to a template or directly to a single-send message. **WhatsApp reality check, live-verified**: classic native buttons are silently discarded by WhatsApp's servers for personal (non-Business-API) numbers — a raw `buttonsMessage` send succeeds with a real message id and no error, but nothing is ever delivered to the device. Buttons therefore render as a clean numbered text list appended to the message (e.g. "1. Yes / 2. No / 3. Call support — call +1555…") — confirmed **delivered** end-to-end against a real phone. Button metadata (type/label/payload) is still fully stored and exposed via the dashboard and templates API for any downstream system that wants to render real interactive UI itself.
+- The Send & Queue test-send form gained a "use a template" picker (auto-fills text/media/buttons) and its own ad-hoc buttons section.
+- A basic templates API (`GET/POST /api/v1/templates`, `GET/PUT/DELETE /api/v1/templates/:id`) — it showed up in the `/developers` portal automatically.
+- **WaGuard does not interpret replies** to the numbered list (e.g. a reply of "1") — that's intentionally out of scope; inbound replies land as ordinary text via the existing webhook pipeline, and it's the downstream app's job to give them meaning.
+
+### Notes for maintainers
+
+- New tables: `contact_lists`, `contact_list_members`, `contact_imports`, `templates` (includes a `media_type` column so a template with media knows which Baileys content shape to build), and one polymorphic `buttons` table (`owner_type: 'template'|'message'`) shared by templates and single-send messages instead of two parallel tables. `messages` gained a nullable `template_id`.
+- `src/db/templates.ts`'s `fillPlaceholders()` is the one placeholder-substitution implementation — reuse it rather than re-implementing `{{}}` replacement (e.g. for M4 broadcasts).
+- CSV import preview is stateless: valid rows round-trip through a hidden `rows_json` form field between the preview and confirm steps, no server-side session state.
+- Adding a route under a **brand-new** API tag (like `templates` here) needs one line each in `src/routes/dashboard/portal.ts`'s `TAG_ORDER`/`TAG_LABELS` for it to show up on `/developers` — routes added under an already-listed tag need nothing.
+- **Test-data isolation:** never copy `data/sessions/` when making an isolated host test-data directory — it holds live WhatsApp auth state, and a copied session can make a host test process attempt a second live connection as the same linked device.
