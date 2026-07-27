@@ -1,13 +1,7 @@
-import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 import type { Button } from '../db/buttons.js';
 import type { Message, MessageType } from '../db/messages.js';
-
-// Same CJS-interop pattern as manager.ts — only `proto` is needed here, to
-// build a raw buttonsMessage the friendly sendMessage() content API can't.
-const require = createRequire(import.meta.url);
-const { proto } = require('@whiskeysockets/baileys');
 
 const MIME_BY_EXT: Record<string, string> = {
   '.jpg': 'image/jpeg',
@@ -67,32 +61,26 @@ export async function buildContent(msg: Message, buttons: Button[] = []): Promis
 }
 
 /**
- * Builds a raw `buttonsMessage` proto (bypassing the friendly sendMessage()
- * content API, which has no path for buttons at all — see manager.ts's
- * relayRaw()). Text-only header (HeaderType.EMPTY = 1): media + buttons don't
- * combine in v2. Every button is sent as a classic RESPONSE (quick-reply)
- * button — the modern proto has no dedicated call/url button type; call/link
- * buttons carry their intended action in `payload` as metadata (visible to
- * API/webhook consumers) but render as a plain quick-reply on the device.
+ * Renders buttons as a numbered text list appended to the message.
+ *
+ * A real raw `buttonsMessage` (via a low-level `sock.relayMessage`, bypassing
+ * the friendly sendMessage() content API which has no button support at all)
+ * was built and verified live against a real linked personal number: the send
+ * succeeds and WhatsApp acknowledges it (a real message id, no error), but
+ * nothing is ever delivered to the device — WhatsApp silently discards classic
+ * interactive-button messages from non-Business-API personal numbers
+ * server-side. So buttons render as plain text here instead, which actually
+ * reaches the recipient.
  */
 function buildButtonsContent(msg: Message, buttons: Button[]): Record<string, unknown> {
   const contentText = msg.content ?? msg.caption ?? '';
-  // Returns a fully-formed proto.Message instance (not a "friendly" content
-  // shape) — relayRaw() passes this straight to sock.relayMessage(), bypassing
-  // generateWAMessageContent entirely.
-  return proto.Message.create({
-    buttonsMessage: proto.Message.ButtonsMessage.create({
-      contentText,
-      headerType: 1, // EMPTY
-      buttons: buttons.map((b) =>
-        proto.Message.ButtonsMessage.Button.create({
-          buttonId: b.id,
-          buttonText: { displayText: b.label },
-          type: 1, // RESPONSE
-        }),
-      ),
-    }),
+  const lines = buttons.map((b, i) => {
+    const n = i + 1;
+    if (b.type === 'call') return `${n}. ${b.label}${b.payload ? ` — call ${b.payload}` : ''}`;
+    if (b.type === 'link') return `${n}. ${b.label}${b.payload ? ` — ${b.payload}` : ''}`;
+    return `${n}. ${b.label}`;
   });
+  return { text: `${contentText}\n\n${lines.join('\n')}` };
 }
 
 function mediaContent(

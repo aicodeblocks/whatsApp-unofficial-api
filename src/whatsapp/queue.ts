@@ -184,9 +184,7 @@ async function releaseSend(
 
     const buttons = getButtonsFor('message', message.id);
     const content = await buildContent(message, buttons);
-    const providerId = buttons.length
-      ? await whatsappManager.relayRaw(numberId, jid, content)
-      : await whatsappManager.sendMessage(numberId, jid, content);
+    const providerId = await whatsappManager.sendMessage(numberId, jid, content);
 
     markMessageSent(messageId, providerId);
     advanceMessageStatus(messageId, 'sent');
