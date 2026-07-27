@@ -28,6 +28,13 @@ npm run dev        # development, auto-reload
 npm run build && npm start
 ```
 
+## Deploying on Cloudways
+
+Cloudways has no native Node.js stack, but WaGuard runs well on a Cloudways
+**PHP Application** server's underlying VPS via PM2 + Nginx reverse proxy —
+see [`docs/DEPLOY_CLOUDWAYS.md`](docs/DEPLOY_CLOUDWAYS.md) for the full,
+step-by-step guide.
+
 ## Authentication
 
 Every `/api/v1/...` call requires an API token:
