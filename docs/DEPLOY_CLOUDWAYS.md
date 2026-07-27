@@ -10,33 +10,44 @@ Docker is the normal recommended way to run WaGuard (see the main
 [README](../README.md)), but Cloudways PHP servers don't offer Docker, so this
 follows the README's "Run without Docker" path instead.
 
+Deployment of the *code itself* is handled by Cloudways' own Git deployment
+feature (Application Settings → Git), authenticated with an SSH key you
+manage there — not by anything in this guide or its scripts. This guide
+covers everything Cloudways' Git deploy doesn't do for a Node app: installing
+Node/PM2/Nginx-proxy/SSL, and rebuilding + restarting after each deploy.
+
 ## One-shot automated setup
 
-`scripts/provision-cloudways.sh` does everything below (steps 2–7) for you in
-a single run: installs Node + build tools + PM2, clones and builds the app,
+`scripts/provision-cloudways.sh` does steps 2–6 below for you in a single
+run: installs Node + build tools + PM2, builds the already-deployed app,
 writes `.env` with the required production settings, starts it under PM2
 (with boot-persistence), wires up the Nginx reverse proxy, and issues a
 Let's Encrypt certificate — logging every step to a timestamped file under
 `~/waguard-provision-logs/`.
 
-It still needs three things to exist first, since nothing running over SSH
-can do them for you: the Cloudways server + a placeholder PHP app created in
-the Cloudways console, a DNS A record for your domain pointing at that
-server, and that domain attached to the placeholder app (Application →
-Domain Management) — see step 1 below. Once those are in place:
+It's menu-driven: run it with no arguments over an interactive SSH session
+and it asks whether to **dry-run** (check everything, log what would happen,
+make zero changes) or **apply** (do it for real). Use `--dry-run` / `--apply`
+to skip the menu (needed for non-interactive use).
+
+It needs the code already deployed into the current directory (via Cloudways'
+Git deployment — step 1 below) plus a DNS A record and domain attachment in
+place first, since none of that is reachable over SSH. Dry-run checks for all
+of it and tells you exactly what's missing before you apply anything:
 
 ```bash
 ssh <master_user>@<server_ip>
-curl -fsSL https://raw.githubusercontent.com/aicodeblocks/whatsApp-unofficial-api/main/scripts/provision-cloudways.sh -o provision-cloudways.sh
-chmod +x provision-cloudways.sh
-DOMAIN=wa.example.com LETSENCRYPT_EMAIL=you@example.com ./provision-cloudways.sh
+cd /home/master/applications/<app>/public_html   # wherever Cloudways deployed the code
+DOMAIN=wa.example.com LETSENCRYPT_EMAIL=you@example.com ./scripts/provision-cloudways.sh --dry-run
+# review the log, fix anything it flags, then:
+DOMAIN=wa.example.com LETSENCRYPT_EMAIL=you@example.com ./scripts/provision-cloudways.sh --apply
 ```
 
 Read the script's header comment for the full list of environment variables
-it accepts (`GIT_REPO`, `GIT_BRANCH`, `APP_DIR`, `NODE_PORT`, `SKIP_SSL`,
-etc. — all optional with sane defaults). It's idempotent, so re-running it
-after a failed step (check the log it prints the path to) picks up where it
-left off rather than duplicating work.
+it accepts (`NODE_PORT`, `NGINX_VHOST_PATH`, `SKIP_SSL`, etc. — all optional
+with sane defaults). Apply is idempotent, so re-running it after a failed
+step (check the log path it prints) picks up where it left off rather than
+duplicating work.
 
 The rest of this document explains the same steps manually, for anyone who'd
 rather run them by hand or needs to adapt one.
@@ -47,21 +58,29 @@ rather run them by hand or needs to adapt one.
   AWS, Vultr, etc.). 1 GB RAM is enough to start; 2 GB is more comfortable.
 - A domain or subdomain you control (e.g. `wa.example.com`) pointed at the
   server's public IP (A record).
-- This repo pushed to a Git host you can `git clone` from the server (e.g.
-  `https://github.com/aicodeblocks/whatsApp-unofficial-api.git`), or you upload
-  the code via SFTP instead.
 
-## 1. Create the server and enable SSH
+## 1. Create the server and app, deploy the code via Cloudways Git
 
 1. Cloudways console → **Add Server** → choose **PHP** as the application, any
-   provider/size. This just gives you the box; the PHP app itself is unused.
-2. Open the server → **Master Credentials** tab → note the **Public IP**,
-   **SSH username**, and **password** (or add your SSH public key there instead).
-3. SSH in to confirm access:
+   provider/size. This just gives you the box; the PHP app itself is unused
+   as a PHP app — it exists so you get an Nginx vhost + domain + SSL slot to
+   point at the Node process instead.
+2. App → **Deployment via Git** (under Application Settings): connect this
+   repo (`https://github.com/aicodeblocks/whatsApp-unofficial-api.git`),
+   authenticated with an SSH key added there, choose the `main` branch, and
+   deploy. This puts the code in the app's `public_html`
+   (`/home/master/applications/<app>/public_html`).
+3. Server → **Master Credentials** tab → note the **Public IP**, **SSH
+   username**, and **password** (or add your SSH public key there instead),
+   then confirm SSH access:
 
    ```bash
    ssh <master_user>@<server_ip>
+   cd /home/master/applications/<app>/public_html
    ```
+
+To update later, redeploy from the Cloudways Git tab, then rebuild/restart
+(step 3, or `./scripts/deploy.sh` — see "Automating rebuilds" below).
 
 ## 2. Install Node.js and native build tools
 
@@ -82,23 +101,16 @@ and can bring it back up after a server reboot:
 sudo npm install -g pm2
 ```
 
-## 3. Deploy the code
+## 3. Build the code
 
-Pick a directory outside any PHP app's `public_html` (that doc root is for the
-placeholder PHP app and is irrelevant here) — e.g. directly under your user's home:
+From the app directory Cloudways deployed into (step 1):
 
 ```bash
-cd ~
-git clone https://github.com/aicodeblocks/whatsApp-unofficial-api.git waguard
-cd waguard
+cd /home/master/applications/<app>/public_html
 npm install          # full install — the TypeScript build needs devDependencies
 npm run build        # compiles src/ -> dist/, copies views
 npm prune --omit=dev # drop devDependencies after building, to save space
 ```
-
-To update later: `git pull`, `npm install`, `npm run build`, then restart PM2
-(step 5) — or just run `./scripts/deploy.sh`, which does all of that in one
-command (see "Automating deploys" below).
 
 ## 4. Configure environment
 
@@ -129,7 +141,7 @@ linked; doing so forces a re-scan of the QR code.
 ## 5. Run WaGuard under PM2
 
 ```bash
-cd ~/waguard
+cd /home/master/applications/<app>/public_html
 pm2 start dist/server.js --name waguard
 pm2 save
 pm2 startup systemd   # prints a sudo command — run exactly what it prints
@@ -194,26 +206,24 @@ Then open `https://wa.example.com` in a browser — you should see the WaGuard
 setup screen to create the admin password on first launch (same as the
 Docker/local flow described in the README).
 
-## Automating deploys
+## Automating rebuilds
 
-`npm run build` (the TypeScript compile) has to run on every deploy — there's
-no way around that step since WaGuard ships as TypeScript, not compiled JS.
-What *can* be automated is running it for you. `scripts/deploy.sh` in this
-repo does `git pull` → `npm install` → `npm run build` → `npm prune
---omit=dev` → `pm2 restart waguard` in one shot:
+Cloudways' Git deployment pulls the new code, but doesn't know to run `npm
+run build` or restart PM2 afterwards — that part is still on you, every
+time. `scripts/deploy.sh` does `npm install` → `npm run build` → `npm prune
+--omit=dev` → `pm2 restart waguard` in one shot; run it right after every
+Cloudways Git deploy:
 
 ```bash
-cd ~/waguard
+cd /home/master/applications/<app>/public_html
 ./scripts/deploy.sh
 ```
 
-Cloudways' own Git integration (Application Settings → Git, on the
-placeholder PHP app) only pulls files into that app's `public_html` and has
-no hook to run `npm run build` afterwards — it doesn't help here, since this
-app never actually runs as the PHP app. For real push-to-deploy automation,
-add a CI step (e.g. a GitHub Actions workflow using
-[`appleboy/ssh-action`](https://github.com/appleboy/ssh-action)) that SSHes
-into the server on push to `main` and runs `./scripts/deploy.sh`.
+If you want that to happen automatically instead of a manual step after each
+deploy, check whether your Cloudways plan exposes a **post-deployment
+script** hook (Application Settings → Deployment, on newer plans) and point
+it at `./scripts/deploy.sh`; if not, a cron job polling for new commits, or a
+CI step that SSHes in after deploying, are the usual workarounds.
 
 ## Troubleshooting
 
