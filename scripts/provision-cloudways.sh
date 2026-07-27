@@ -163,7 +163,9 @@ ok "found package.json + .env.example in $APP_DIR"
 
 step "Checking DNS for $DOMAIN"
 SERVER_IP="$(curl -fsS https://ifconfig.me || curl -fsS https://api.ipify.org || true)"
-RESOLVED_IP="$(getent hosts "$DOMAIN" 2>/dev/null | awk '{print $1}' | head -n1 || true)"
+# ahostsv4 so an AAAA record can't be compared against our IPv4 public IP
+# and produce a spurious mismatch.
+RESOLVED_IP="$(getent ahostsv4 "$DOMAIN" 2>/dev/null | awk '{print $1}' | head -n1 || true)"
 if [ -z "$SERVER_IP" ]; then
   issue "Couldn't determine this server's public IP (outbound network issue?)."
 elif [ -z "$RESOLVED_IP" ]; then
@@ -342,10 +344,28 @@ location / {
     fi
     rm -f "$TMP_NGINX" "/tmp/nginx-t.$$"
   else
-    $SUDO cp "$NGINX_VHOST_PATH" "${NGINX_VHOST_PATH}.bak-$(date +%s)"
+    NGINX_BAK="${NGINX_VHOST_PATH}.bak-$(date +%s)"
+    $SUDO cp "$NGINX_VHOST_PATH" "$NGINX_BAK"
     echo "$PROXY_BLOCK" | $SUDO tee -a "$NGINX_VHOST_PATH" >/dev/null
-    run_step "nginx -t" $SUDO nginx -t
-    run_step "reload nginx" $SUDO service nginx reload
+    info "running: nginx -t"
+    if $SUDO nginx -t; then
+      ok "nginx -t"
+      run_step "reload nginx" $SUDO service nginx reload
+    else
+      # Restore the original vhost so we don't leave a broken block behind
+      # (which would also make re-runs think the marker is already installed).
+      $SUDO cp "$NGINX_BAK" "$NGINX_VHOST_PATH"
+      echo
+      echo "!! FAILED during: $CURRENT_STEP (nginx -t)"
+      echo "!! The appended proxy block made the Nginx config invalid; restored"
+      echo "!! the original vhost from $NGINX_BAK (Nginx was NOT reloaded)."
+      echo "!! Your Cloudways vhost likely nests directives differently — add the"
+      echo "!! location block via the console's 'Additional Nginx directives' box"
+      echo "!! instead (see docs/DEPLOY_CLOUDWAYS.md), or set NGINX_VHOST_PATH to"
+      echo "!! the correct server-block file."
+      echo "!! Log: $LOG_FILE"
+      exit 1
+    fi
   fi
 fi
 

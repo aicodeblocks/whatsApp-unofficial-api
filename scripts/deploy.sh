@@ -14,5 +14,7 @@ npm install
 npm run build
 npm prune --omit=dev
 
-pm2 restart waguard --update-env
+# restart if already registered; otherwise start it (e.g. process was wiped
+# by a reboot before pm2's boot-persistence kicked in).
+pm2 restart waguard --update-env || pm2 start dist/server.js --name waguard
 pm2 save
