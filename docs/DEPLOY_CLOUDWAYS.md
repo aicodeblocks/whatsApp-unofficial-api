@@ -10,6 +10,12 @@ Docker is the normal recommended way to run WaGuard (see the main
 [README](../README.md)), but Cloudways PHP servers don't offer Docker, so this
 follows the README's "Run without Docker" path instead.
 
+> **Don't need a custom domain or HTTPS right now?** See
+> [`DEPLOY_CLOUDWAYS_SIMPLE.md`](DEPLOY_CLOUDWAYS_SIMPLE.md) for a simpler
+> setup that skips the Nginx reverse proxy entirely and hits the app directly
+> on its own port. This guide (with Nginx + SSL) is the one to use for
+> anything reachable by a downstream app or teammate over the internet.
+
 ## Prerequisites
 
 - A Cloudways account and a **PHP Application** server (any provider — DigitalOcean,
@@ -66,7 +72,8 @@ npm prune --omit=dev # drop devDependencies after building, to save space
 ```
 
 To update later: `git pull`, `npm install`, `npm run build`, then restart PM2
-(step 5).
+(step 5) — or just run `./scripts/deploy.sh`, which does all of that in one
+command (see "Automating deploys" below).
 
 ## 4. Configure environment
 
@@ -161,6 +168,27 @@ curl -I https://wa.example.com
 Then open `https://wa.example.com` in a browser — you should see the WaGuard
 setup screen to create the admin password on first launch (same as the
 Docker/local flow described in the README).
+
+## Automating deploys
+
+`npm run build` (the TypeScript compile) has to run on every deploy — there's
+no way around that step since WaGuard ships as TypeScript, not compiled JS.
+What *can* be automated is running it for you. `scripts/deploy.sh` in this
+repo does `git pull` → `npm install` → `npm run build` → `npm prune
+--omit=dev` → `pm2 restart waguard` in one shot:
+
+```bash
+cd ~/waguard
+./scripts/deploy.sh
+```
+
+Cloudways' own Git integration (Application Settings → Git, on the
+placeholder PHP app) only pulls files into that app's `public_html` and has
+no hook to run `npm run build` afterwards — it doesn't help here, since this
+app never actually runs as the PHP app. For real push-to-deploy automation,
+add a CI step (e.g. a GitHub Actions workflow using
+[`appleboy/ssh-action`](https://github.com/appleboy/ssh-action)) that SSHes
+into the server on push to `main` and runs `./scripts/deploy.sh`.
 
 ## Troubleshooting
 
