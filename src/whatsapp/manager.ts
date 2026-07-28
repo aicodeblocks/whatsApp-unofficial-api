@@ -1,4 +1,3 @@
-import { createRequire } from 'node:module';
 import { existsSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import QRCode from 'qrcode';
@@ -19,10 +18,9 @@ import { handleInbound } from './inbound.js';
 import { emitMessageStatus } from './webhooks.js';
 import { recordSignal } from './health.js';
 
-// Baileys ships as CommonJS with a default export. Loading it via createRequire
-// avoids ESM/CJS interop pitfalls that differ between tsx and compiled Node ESM.
-const require = createRequire(import.meta.url);
-const baileys = require('@whiskeysockets/baileys');
+// Baileys ships as ESM-only (no CJS entry point). A dynamic import keeps this
+// working on Node 20 — require()'ing an ESM package only works on Node 22.12+.
+const baileys = await import('@whiskeysockets/baileys');
 const makeWASocket = baileys.default as (opts: any) => any;
 const {
   useMultiFileAuthState,

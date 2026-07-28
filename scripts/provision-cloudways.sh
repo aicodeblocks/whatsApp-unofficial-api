@@ -283,9 +283,16 @@ else
   else
     run_step "npm config set prefix" npm config set prefix "$HOME/.waguard-npm-global"
     run_step "install PM2 (no sudo)" npm install -g pm2
+    # ~/.bashrc is sometimes locked down (e.g. a managed file on Cloudways) —
+    # PATH isn't needed for this script (it always uses $PM2_CMD's full
+    # path), so this is just a convenience for interactive use. Never fail
+    # the run over it.
     if ! grep -qF "$PM2_BIN_DIR" "$HOME/.bashrc" 2>/dev/null; then
-      echo "export PATH=\"\$PATH:$PM2_BIN_DIR\"" >>"$HOME/.bashrc"
-      info "added $PM2_BIN_DIR to PATH in ~/.bashrc — source it or start a new shell to use 'pm2' directly"
+      if echo "export PATH=\"\$PATH:$PM2_BIN_DIR\"" >>"$HOME/.bashrc" 2>/dev/null; then
+        info "added $PM2_BIN_DIR to PATH in ~/.bashrc — source it or start a new shell to use 'pm2' directly"
+      else
+        info "couldn't write to ~/.bashrc (locked down on this host) — use the full path $PM2_BIN_DIR/pm2 for interactive pm2 commands, or add it to PATH yourself"
+      fi
     fi
   fi
 fi
