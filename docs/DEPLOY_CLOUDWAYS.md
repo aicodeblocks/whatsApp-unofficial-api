@@ -207,6 +207,12 @@ pm2 logs waguard        # tail logs
 pm2 restart waguard     # after a code update
 ```
 
+To free up CPU/RAM without losing the PM2 registration (e.g. while
+debugging something else on a small box), `./scripts/stop.sh` stops it;
+`pm2 restart waguard` (or `./scripts/stop.sh` again — it's just `pm2
+stop`) brings it back. `./scripts/stop.sh --delete` removes it from PM2
+entirely instead.
+
 ## 6. Reverse proxy (already deployed — nothing to do)
 
 The repo's root `.htaccess` routes all incoming Apache traffic to the Node
