@@ -213,6 +213,12 @@ NODE_OK=0
 if command -v node >/dev/null 2>&1 && [ "$(node -v | grep -oE '^v[0-9]+' | tr -d v)" -ge 20 ]; then
   ok "Node $(node -v) already installed"
   NODE_OK=1
+  # sharp (image handling) needs >=20.9.0 specifically; older 20.x still
+  # works today (npm just warns), but flag it since it's an easy nvm fix.
+  NODE_MINOR="$(node -v | sed -E 's/^v[0-9]+\.([0-9]+).*/\1/')"
+  if [ "$NODE_MINOR" -lt 9 ] 2>/dev/null; then
+    info "Node $(node -v) is below 20.9.0 — sharp will print an EBADENGINE warning on install (non-fatal). Run 'nvm install 20' for a current 20.x if you want it silenced."
+  fi
 fi
 NVM_SH="$HOME/.nvm/nvm.sh"
 if [ "$NODE_OK" -eq 0 ] && [ -s "$NVM_SH" ]; then
@@ -303,13 +309,21 @@ fi
 
 step "Build (TypeScript compile)"
 if [ "$MODE" = "dry-run" ]; then
-  if npx tsc --noEmit -p tsconfig.json 2>/tmp/tsc-dry.$$; then
-    ok "TypeScript compiles cleanly (tsc --noEmit)"
+  # npm install --dry-run above didn't actually install anything, so there's
+  # no local tsc yet — running it via npx would try to fetch an unrelated
+  # abandoned npm package literally called "tsc" and fail. Only check if a
+  # real install already happened (e.g. a previous apply).
+  if [ -x "$APP_DIR/node_modules/.bin/tsc" ]; then
+    if "$APP_DIR/node_modules/.bin/tsc" --noEmit -p tsconfig.json 2>/tmp/tsc-dry.$$; then
+      ok "TypeScript compiles cleanly (tsc --noEmit)"
+    else
+      issue "TypeScript fails to compile — npm run build would fail. See below:"
+      cat /tmp/tsc-dry.$$
+    fi
+    rm -f "/tmp/tsc-dry.$$"
   else
-    issue "TypeScript fails to compile — npm run build would fail. See below:"
-    cat /tmp/tsc-dry.$$
+    info "node_modules not installed yet (dry-run doesn't install) — skipping compile check; 'npm install' + 'npm run build' on apply will validate this."
   fi
-  rm -f "/tmp/tsc-dry.$$"
 else
   run_step "npm run build" npm run build
   run_step "npm prune --omit=dev" npm prune --omit=dev
