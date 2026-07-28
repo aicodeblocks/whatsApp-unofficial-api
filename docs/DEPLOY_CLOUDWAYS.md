@@ -37,11 +37,13 @@ tabs) — this guide and its script don't need to know about it either way.
 ## One-shot automated setup
 
 `scripts/provision-cloudways.sh` does steps 2–5 below for you in a single
-run: installs Node + build tools, installs PM2 under the master user's home
+run: installs Node (via nvm if you have no sudo, via NodeSource if you do)
+and checks for the C++ build toolchain, installs PM2 under your home
 directory (no root needed for that part — same approach as Cloudways' own
 guide), builds the already-deployed app, writes `.env`, and starts it under
 PM2 (with boot-persistence where sudo is available) — logging every step to
-a timestamped file under `~/waguard-provision-logs/`.
+a timestamped file under `~/waguard-provision-logs/`. It works the same way
+whether or not you have sudo — see step 2 below for what's still root-only.
 
 It's menu-driven: run it with no arguments over an interactive SSH session
 and it asks whether to **dry-run** (check everything, log what would happen,
@@ -108,8 +110,10 @@ To update later, redeploy from the Cloudways Git tab, then rebuild/restart
 
 ## 2. Install Node.js and native build tools
 
-WaGuard needs Node 20+, and `better-sqlite3` needs a C++ toolchain to compile
-its native binding at install time.
+WaGuard needs Node 20+, and `better-sqlite3` needs a C++ toolchain (gcc/g++/
+make/python3) to compile its native binding at install time.
+
+**With sudo:**
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -117,6 +121,23 @@ sudo apt-get install -y nodejs build-essential python3
 node -v   # v20.x
 npm -v
 ```
+
+**Without sudo** — Node itself installs fine under your own home directory
+via [nvm](https://github.com/nvm-sh/nvm), no root needed:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc   # or: source ~/.nvm/nvm.sh
+nvm install 20
+node -v   # v20.x
+```
+
+The C++ toolchain is the one piece that genuinely needs root — check first
+whether it's already there (`which gcc g++ make python3`; Cloudways VPS
+images often have it even when you don't have sudo yourself). If it's
+missing and you have no sudo, ask Cloudways support to install
+`build-essential python3` for you — there's no user-space workaround for
+system compiler packages.
 
 ## 3. Install PM2 (no root needed)
 
@@ -236,9 +257,14 @@ CI step that SSHes in after deploying, are the usual workarounds.
 - **502/500 through the Application URL, but `http://127.0.0.1:3000` works
   directly** — `mod_proxy` / `mod_proxy_http` aren't enabled; ask Cloudways
   support to enable them (see step 6).
-- **`npm install` fails compiling `better-sqlite3`** — `build-essential` and
-  `python3` aren't installed (step 2), or you're on an unsupported Node ABI;
-  confirm `node -v` is 20+.
+- **`npm install` fails compiling `better-sqlite3`** — `gcc`/`g++`/`make`/
+  `python3` aren't all installed (step 2 — this is the one piece that needs
+  sudo if missing), or you're on an unsupported Node ABI; confirm `node -v`
+  is 20+.
+- **No sudo, and `nvm install 20` fails or hangs** — check outbound network
+  access to `raw.githubusercontent.com` and `nodejs.org`; some restricted
+  environments block one or the other. If so, ask Cloudways support whether
+  Node 20+ can be pre-installed for you instead.
 - **Cookies not set / stuck on login** — `COOKIE_SECURE=true` but the site is
   being served over plain HTTP; use the Cloudways Application URL (HTTPS by
   default), or set `COOKIE_SECURE=false` temporarily while testing over HTTP.

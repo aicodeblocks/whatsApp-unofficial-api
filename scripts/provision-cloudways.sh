@@ -30,12 +30,19 @@
 #   1) Dry run  — checks everything and logs what WOULD happen; makes no
 #                 changes to the system. Tells you up front whether Apply
 #                 is likely to succeed or where it will fail.
-#   2) Apply    — does the real, one-time setup: Node + build tools, PM2
+#   2) Apply    — does the real, one-time setup: Node (via nvm if there's no
+#                 sudo, via NodeSource if there is) + build tools, PM2
 #                 (installed locally under the master user, no root needed
 #                 for that part), npm install/build, .env with production
 #                 settings, PM2 start + boot persistence. Safe to re-run
 #                 (idempotent).
 #   3) Exit
+#
+# No sudo? No problem for Node itself — nvm installs it entirely under
+# $HOME/.nvm. The one thing that genuinely needs root is the C++ toolchain
+# (build-essential/python3) that better-sqlite3 compiles against; if it's
+# missing and you have no sudo, the script tells you exactly what to ask
+# Cloudways support for.
 #
 # Both modes write a full, timestamped log to ~/waguard-provision-logs/.
 # Non-interactive use (CI, `curl | bash`, etc.): pass the mode instead of
@@ -46,12 +53,15 @@
 #   1. The Cloudways server + app already created in the Cloudways console,
 #      and the code already deployed into this directory via its Git
 #      deployment feature.
-#   2. mod_proxy / mod_proxy_http enabled on the server — Cloudways support
-#      needs to flip this on for you (per their own guide, linked above).
-#      Dry-run checks for it and tells you if it's missing.
+#   2. mod_proxy / mod_proxy_http enabled on the server (needed by the
+#      repo's .htaccess) — Cloudways support needs to flip this on, per
+#      their own guide linked above. If the app doesn't respond through the
+#      Application URL after apply, this is the first thing to check.
 #   3. Attaching a custom domain + issuing SSL for it, if you want one
 #      instead of the default Application URL — both are one-click in the
 #      Cloudways console, not SSH-reachable.
+#   4. build-essential/python3, if missing and you have no sudo — ask
+#      Cloudways support to install them.
 # ------------------------------------------------------------------------
 #
 # Configure via environment variables (all optional):
@@ -195,47 +205,60 @@ else
   issue "No .htaccess in $APP_DIR — the repo's root .htaccess should have been deployed by Cloudways Git deploy. Without it, Apache won't proxy requests to Node."
 fi
 
-step "Checking mod_proxy / mod_proxy_http (Apache)"
-if command -v apache2ctl >/dev/null 2>&1; then
-  MODS="$($SUDO apache2ctl -M 2>/dev/null || apache2ctl -M 2>/dev/null || true)"
-  if echo "$MODS" | grep -q "proxy_module" && echo "$MODS" | grep -q "proxy_http_module"; then
-    ok "mod_proxy and mod_proxy_http are enabled"
-  else
-    issue "mod_proxy / mod_proxy_http not detected as enabled. Ask Cloudways support to enable them for this server (per their Node.js hosting guide) — the .htaccess proxy will 500 without it."
-  fi
-else
-  info "apache2ctl not found or not reachable from here — can't verify mod_proxy status. If the app 500s after apply, ask Cloudways support to confirm mod_proxy / mod_proxy_http are enabled."
-fi
-
-# ---- Node.js + build tools ----------------------------------------------
-step "Node.js 20 and native build tools"
+# ---- Node.js ----------------------------------------------------------
+# Prefer NodeSource+apt when sudo is available (system-wide, simplest);
+# fall back to nvm (installs under $HOME/.nvm, no root needed) otherwise.
+step "Node.js 20"
 NODE_OK=0
 if command -v node >/dev/null 2>&1 && [ "$(node -v | grep -oE '^v[0-9]+' | tr -d v)" -ge 20 ]; then
   ok "Node $(node -v) already installed"
   NODE_OK=1
 fi
-if [ "$NODE_OK" -eq 0 ] && [ "$HAVE_SUDO" -eq 0 ]; then
-  issue "Node 20+ isn't installed and this session has no passwordless sudo to install it. Ask Cloudways to pre-install Node 20+, or run this over an SSH session with sudo."
+NVM_SH="$HOME/.nvm/nvm.sh"
+if [ "$NODE_OK" -eq 0 ] && [ -s "$NVM_SH" ]; then
+  # shellcheck disable=SC1090
+  . "$NVM_SH"
+  if command -v node >/dev/null 2>&1 && [ "$(node -v | grep -oE '^v[0-9]+' | tr -d v)" -ge 20 ]; then
+    ok "Node $(node -v) already installed via nvm"
+    NODE_OK=1
+  fi
 fi
 if [ "$MODE" = "dry-run" ]; then
-  if [ "$NODE_OK" -eq 0 ] && [ "$HAVE_SUDO" -eq 1 ]; then
-    info "[DRY-RUN] would install Node 20.x via NodeSource"
-    if ! curl -fsSL https://deb.nodesource.com/setup_20.x -o /dev/null; then
-      issue "Can't reach deb.nodesource.com to fetch the Node setup script — check outbound network/DNS."
+  if [ "$NODE_OK" -eq 0 ]; then
+    if [ "$HAVE_SUDO" -eq 1 ]; then
+      info "[DRY-RUN] would install Node 20.x via NodeSource"
+      curl -fsSL https://deb.nodesource.com/setup_20.x -o /dev/null || issue "Can't reach deb.nodesource.com — check outbound network/DNS."
+    else
+      info "[DRY-RUN] no sudo — would install Node 20.x via nvm (\$HOME/.nvm, no root needed)"
+      curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh -o /dev/null || issue "Can't reach raw.githubusercontent.com to fetch the nvm installer — check outbound network/DNS."
     fi
   fi
-  if [ "$HAVE_SUDO" -eq 1 ] && $SUDO apt-get install --dry-run -y build-essential python3 git >/tmp/apt-sim.$$ 2>&1; then
-    ok "build-essential/python3/git installable (apt --dry-run)"
-  elif [ "$HAVE_SUDO" -eq 1 ]; then
-    issue "apt-get can't resolve build-essential/python3/git — see /tmp/apt-sim.$$"
-  fi
-  rm -f "/tmp/apt-sim.$$"
 else
   if [ "$NODE_OK" -eq 0 ]; then
-    run_step "install Node 20.x" bash -c "curl -fsSL https://deb.nodesource.com/setup_20.x | $SUDO -E bash - && $SUDO apt-get install -y nodejs"
+    if [ "$HAVE_SUDO" -eq 1 ]; then
+      run_step "install Node 20.x" bash -c "curl -fsSL https://deb.nodesource.com/setup_20.x | $SUDO -E bash - && $SUDO apt-get install -y nodejs"
+    else
+      run_step "install nvm" bash -c "curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash"
+      # shellcheck disable=SC1090
+      . "$NVM_SH"
+      run_step "install Node 20.x via nvm" nvm install 20
+    fi
   fi
-  run_step "install build tools" $SUDO apt-get install -y build-essential python3 git
   node -v; npm -v
+fi
+
+# ---- native build toolchain (needed by better-sqlite3) --------------------
+step "C++ build toolchain (gcc/g++/make/python3)"
+TOOLCHAIN_OK=1
+for tool in gcc g++ make python3; do
+  command -v "$tool" >/dev/null 2>&1 || TOOLCHAIN_OK=0
+done
+if [ "$TOOLCHAIN_OK" -eq 1 ]; then
+  ok "gcc/g++/make/python3 all present"
+elif [ "$HAVE_SUDO" -eq 1 ]; then
+  run_step "install build-essential python3" $SUDO apt-get install -y build-essential python3
+else
+  issue "gcc/g++/make/python3 not all present, and there's no sudo to install build-essential/python3. Ask Cloudways support to install them — npm install will fail compiling better-sqlite3 without them."
 fi
 
 # ---- PM2 (per-user install, no root required — matches Cloudways' guide) --
