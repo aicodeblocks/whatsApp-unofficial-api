@@ -37,6 +37,11 @@ see [`docs/DEPLOY_CLOUDWAYS.md`](docs/DEPLOY_CLOUDWAYS.md) for the full guide.
 run (with a log file); `scripts/deploy.sh` automates rebuild-and-restart for
 updates after that.
 
+No domain yet, or don't need HTTPS? See
+[`docs/DEPLOY_CLOUDWAYS_IP.md`](docs/DEPLOY_CLOUDWAYS_IP.md) and
+`scripts/provision-cloudways-ip.sh` for an IP-only path (plain HTTP, no
+Nginx/SSL).
+
 ## Authentication
 
 Every `/api/v1/...` call requires an API token:

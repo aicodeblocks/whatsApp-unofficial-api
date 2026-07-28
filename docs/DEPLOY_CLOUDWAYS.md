@@ -16,6 +16,10 @@ manage there — not by anything in this guide or its scripts. This guide
 covers everything Cloudways' Git deploy doesn't do for a Node app: installing
 Node/PM2/Nginx-proxy/SSL, and rebuilding + restarting after each deploy.
 
+No domain yet, or don't need HTTPS? See
+[`DEPLOY_CLOUDWAYS_IP.md`](DEPLOY_CLOUDWAYS_IP.md) instead — same Node/PM2
+setup, reached directly on its own port with no Nginx/SSL step.
+
 ## One-shot automated setup
 
 `scripts/provision-cloudways.sh` does steps 2–6 below for you in a single
