@@ -14,7 +14,15 @@ npm install
 npm run build
 npm prune --omit=dev
 
+# provision-cloudways.sh installs PM2 under $HOME (no root needed), which
+# isn't on PATH in a non-interactive shell — fall back to that full path.
+if command -v pm2 >/dev/null 2>&1; then
+  PM2_CMD="pm2"
+else
+  PM2_CMD="$HOME/.waguard-npm-global/bin/pm2"
+fi
+
 # restart if already registered; otherwise start it (e.g. process was wiped
 # by a reboot before pm2's boot-persistence kicked in).
-pm2 restart waguard --update-env || pm2 start dist/server.js --name waguard
-pm2 save
+"$PM2_CMD" restart waguard --update-env || "$PM2_CMD" start dist/server.js --name waguard
+"$PM2_CMD" save
