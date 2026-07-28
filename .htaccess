@@ -1,0 +1,20 @@
+# Cloudways Apache reverse proxy to the WaGuard Node process.
+#
+# Cloudways has no native Node.js stack — WaGuard runs as a Node process
+# under PM2, and this file is what routes incoming requests to it, following
+# Cloudways' own guidance for hosting Node apps on a PHP Application server:
+# https://www.cloudways.com/blog/how-to-host-a-node-js-application/
+#
+# Requires mod_proxy + mod_proxy_http enabled on the server (ask Cloudways
+# support to enable them if the proxy 500s — see docs/DEPLOY_CLOUDWAYS.md).
+# This file is deployed automatically with the rest of the repo via
+# Cloudways' Git deployment — no manual edit needed unless you change
+# NODE_PORT away from the default 3000 in scripts/provision-cloudways.sh.
+
+DirectoryIndex disabled
+RewriteEngine On
+RewriteBase /
+RewriteRule ^(.*)?$ http://127.0.0.1:3000/$1 [P,L]
+
+ProxyPreserveHost On
+ProxyPassReverse / http://127.0.0.1:3000/
