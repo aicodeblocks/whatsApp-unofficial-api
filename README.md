@@ -379,3 +379,26 @@ Date-range charts, KPI tiles, and CSV export — closing out v2. Built entirely 
 - Day-bucketing is **display-timezone-aware** (`dateKeyInTz()` in `src/time.ts`), not UTC — a message's day bucket matches the operator's actual calendar day under `APP_TZ`, not a UTC-shifted one.
 - Message counts are bucketed by **current status** using `created_at`, not a status-transition event log (none exists) — "delivered on day X" means "created on day X and currently delivered," consistent with how the existing `activitySnapshot()` health helper already reasons about message counts.
 - `campaignPerformanceInRange()` batches the **existing** `campaignProgress()` from M4's `db/broadcasts.ts` — no new per-campaign counting logic was written.
+
+---
+
+# WaGuard v3 — Auto-Reply Bot & AI Fallback
+
+v3 adds the auto-reply bot deferred from v2, in 6 milestones (`_build_plan/v3/`): **1** template-driven bots & rules · **2** AI provider hub · **3** AI fallback (RAG) · **4** bot preview + developer-portal completion · **5** conversation log & bot analytics · **6** turnkey Cloudways deploy. The bot is template-driven at its core; AI (from M3) is an optional paid toggle that only handles off-script questions.
+
+## What's here (v3 · Milestone 1) — Template-driven bots & rules
+
+A working, no-AI auto-reply bot: create a bot, assign it templates via keyword rules, bind it to a linked number, and it answers inbound 1:1 messages automatically — routed through the existing anti-ban/health/consent send queue. This is the free-tier bot; the AI upgrade arrives in M3.
+
+- A new **Bots page**: create/edit/delete bots, bind each to linked number(s) (**one active bot per number**, enforced at the schema level), and build a rule list. Each rule maps a **trigger → reply template**; trigger types are **keyword** (whole-word), **contains** (substring), **exact** (whole message), and **regex** — all matched case-insensitively, evaluated top-to-bottom (**first match wins**). One rule can be flagged the **default case** (the "please reply with a valid option" fallback for off-menu input).
+- A **global master switch** (all bots on/off at once) plus a **per-bot active toggle**, and optional **business-hours** gating (outside the window the bot stays silent; times are `APP_TZ`-aware).
+- The **runtime** (`src/whatsapp/bot.ts`) hooks the inbound path: for a direct (non-group) message it finds the bound bot, matches a rule, and replies with the mapped template via the existing `enqueueMessage()` — so replies inherit pacing, warm-up, quiet hours, daily limits, and consent checks for free. Never replies in groups, never to a STOP/opt-out message, and lets `enqueueMessage` reject blocked recipients.
+- Every considered inbound is written to a **Bot Reply Log** (`bot_reply_log`) recording the outcome (`rule` / `default_case` / `none`) and which rule/template answered — the data v3 M5 will surface as conversations + KPIs.
+- A token-authed **Bots API** (`/api/v1/bots` CRUD + `/api/v1/bots/settings` master switch), auto-documented under the new **bots** tag in `/docs` and `/developers`, so a downstream app can create and manage bots without the dashboard.
+
+### Notes for maintainers
+
+- New tables (`src/db/migrations.ts`): `bots`, `bot_numbers` (the `UNIQUE(number_id)` is what enforces one-bot-per-number), `bot_rules`, `bot_reply_log`. The `ai_enabled` / `persona` / `reshow_menu` columns and the reply-log's `ai_*` columns are modeled now but only exercised from M3.
+- The bot call in `handleInbound` is fire-and-forget (`void runBotReply(...)`) and `runBotReply` never throws — a bot failure can never disrupt inbound capture or webhook delivery.
+- `matchRule()` in `src/db/bots.ts` is pure (bot + text → chosen rule), so it's unit-testable without a DB; the runtime and guards were verified end-to-end against an isolated throwaway `DATA_DIR` (never the live session) — see `_build_plan/v3/milestones/1-bots-template-rules/milestone-log.md`.
+- The global switch is stored in `app_settings` via new generic helpers `getAppSetting`/`setAppSetting`/`getBoolSetting` in `src/db/settings.ts`.

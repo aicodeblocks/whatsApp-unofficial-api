@@ -15,6 +15,7 @@ import {
   getMessageByProviderId,
   type MessageType,
 } from '../db/messages.js';
+import { runBotReply } from './bot.js';
 import { emitInbound } from './webhooks.js';
 
 const MEDIA_DIR = resolve(config.dataDir, 'media');
@@ -187,4 +188,18 @@ export async function handleInbound(
     setConsent(contact.id, 'blocked', 'inbound_stop');
   }
   emitInbound(message, isStop);
+
+  // v3 M1: auto-reply bot. Direct (1:1) messages only, and never for an
+  // opt-out/STOP message (that just blocked the contact — replying would be
+  // wrong). Fire-and-forget: the runtime never throws, so inbound capture and
+  // webhook delivery above are unaffected regardless of bot outcome.
+  if (!groupJid && !isStop) {
+    void runBotReply({
+      numberId,
+      fromPhone,
+      contactId: contact.id,
+      inboundMessageId: message.id,
+      text: extracted.content,
+    });
+  }
 }

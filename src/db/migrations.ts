@@ -238,6 +238,81 @@ export function runMigrations(db: Database): void {
     -- composites, which don't help a query spanning every number.
     CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
     CREATE INDEX IF NOT EXISTS idx_health_created ON health_events(created_at);
+
+    -- v3 Milestone 1: the auto-reply bot. A bot is a template-driven responder
+    -- bound to one or more linked numbers (one active bot per number, enforced
+    -- by the UNIQUE index on bot_numbers.number_id). Its rules map an inbound
+    -- keyword to a reply Template; the runtime (whatsapp/bot.ts) matches an
+    -- incoming 1:1 message against them and replies through the anti-ban queue.
+    -- The ai_* / persona / reshow_menu / business-hours columns are modeled now
+    -- but only exercised from v3 M3 (AI fallback) onward.
+
+    CREATE TABLE IF NOT EXISTS bots (
+      id            TEXT PRIMARY KEY,
+      name          TEXT NOT NULL,
+      active        INTEGER NOT NULL DEFAULT 1,
+      ai_enabled    INTEGER NOT NULL DEFAULT 0,
+      persona       TEXT,
+      reshow_menu   INTEGER NOT NULL DEFAULT 0,
+      business_hours_enabled INTEGER NOT NULL DEFAULT 0,
+      business_hours_start   TEXT,
+      business_hours_end     TEXT,
+      created_at    TEXT NOT NULL,
+      updated_at    TEXT NOT NULL
+    );
+
+    -- Binds a bot to a linked number. UNIQUE(number_id) is what enforces the
+    -- "exactly one active bot answers a given number" rule at the schema level.
+    CREATE TABLE IF NOT EXISTS bot_numbers (
+      bot_id     TEXT NOT NULL,
+      number_id  TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (bot_id, number_id),
+      UNIQUE (number_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_bot_numbers_bot ON bot_numbers(bot_id);
+
+    -- One trigger->template reply rule. trigger_type: keyword | contains |
+    -- exact | regex (all matched case-insensitively). Rules evaluate by
+    -- priority ascending, first match wins. is_default_case marks the fallback
+    -- used when no other rule matches (and, from M3, when AI declines/off).
+    CREATE TABLE IF NOT EXISTS bot_rules (
+      id              TEXT PRIMARY KEY,
+      bot_id          TEXT NOT NULL,
+      trigger_type    TEXT NOT NULL DEFAULT 'keyword',
+      trigger_value   TEXT NOT NULL DEFAULT '',
+      template_id     TEXT NOT NULL,
+      priority        INTEGER NOT NULL DEFAULT 0,
+      is_default_case INTEGER NOT NULL DEFAULT 0,
+      created_at      TEXT NOT NULL,
+      updated_at      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_bot_rules_bot ON bot_rules(bot_id, priority);
+
+    -- Every inbound message a bot considers is logged here (outcome: rule |
+    -- default_case | none), so v3 M5 can render conversations + KPIs. The
+    -- provider/model/token/cost columns stay null until AI answers (M3).
+    CREATE TABLE IF NOT EXISTS bot_reply_log (
+      id                TEXT PRIMARY KEY,
+      bot_id            TEXT NOT NULL,
+      number_id         TEXT NOT NULL,
+      contact_id        TEXT,
+      inbound_message_id TEXT,
+      reply_message_id  TEXT,
+      inbound_text      TEXT,
+      outcome           TEXT NOT NULL,
+      matched_rule_id   TEXT,
+      matched_template_id TEXT,
+      reply_text        TEXT,
+      ai_provider       TEXT,
+      ai_model          TEXT,
+      ai_tokens         INTEGER,
+      ai_cost           REAL,
+      created_at        TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_bot_reply_log_bot ON bot_reply_log(bot_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_bot_reply_log_contact ON bot_reply_log(contact_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_bot_reply_log_created ON bot_reply_log(created_at);
   `);
 
   // v2 M4: existing installs created `messages.contact_id` as NOT NULL (M3's

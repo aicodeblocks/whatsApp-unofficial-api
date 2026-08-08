@@ -138,6 +138,11 @@ async function swaggerPlugin(app: FastifyInstance): Promise<void> {
             'Date-range KPI totals, per-number/campaign breakdowns, and health incidents — the same data the Analytics dashboard page charts. Bearer-token API.',
         },
         {
+          name: 'bots',
+          description:
+            'Template-driven auto-reply bots: bind a bot to linked number(s), define keyword→template rules (keyword/contains/exact/regex, first match wins, with a default-case fallback), and toggle a global master switch. The bot answers inbound 1:1 messages through the same anti-ban queue. Bearer-token API.',
+        },
+        {
           name: 'dashboard (internal)',
           description:
             'The built-in admin web UI (HTML pages, admin session-cookie auth). These are NOT for API clients — a downstream app authenticates with a Bearer token and uses the API groups above. Listed here for reference only.',

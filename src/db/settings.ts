@@ -18,6 +18,23 @@ function setSetting(key: string, value: string): void {
   setStmt.run(key, value);
 }
 
+/** Read an arbitrary app setting (used by feature modules for flags/config). */
+export function getAppSetting(key: string): string | undefined {
+  return getSetting(key);
+}
+
+/** Read a boolean app setting, defaulting when unset. */
+export function getBoolSetting(key: string, fallback: boolean): boolean {
+  const v = getSetting(key);
+  if (v === undefined) return fallback;
+  return v === '1' || v === 'true';
+}
+
+/** Write an arbitrary app setting. */
+export function setAppSetting(key: string, value: string): void {
+  setSetting(key, value);
+}
+
 /** True until the operator has completed the first-run admin setup. */
 export function isFirstRun(): boolean {
   return getSetting(ADMIN_HASH_KEY) === undefined;

@@ -1,0 +1,194 @@
+<%- include('partials/head', { title: 'Bots', active: 'bots' }) %>
+<%
+  function esc(v){ return String(v==null?'':v).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];}); }
+  var e = editing; // null for create, a bot object for edit
+  var tplName = {}; templates.forEach(function(t){ tplName[t.id] = t.name; });
+  var numLabel = {}; numbers.forEach(function(n){ numLabel[n.id] = (n.label || n.phone_number || n.id); });
+%>
+<style>
+  .rule-row{ display:grid; grid-template-columns:130px 1fr 1fr 90px 34px; gap:8px; align-items:center; margin-bottom:8px; }
+  .rule-row select, .rule-row input{ margin:0; }
+  .rule-row .rm{ display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; padding:0; }
+  .rule-head{ display:grid; grid-template-columns:130px 1fr 1fr 90px 34px; gap:8px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:4px; }
+  .num-grid{ display:flex; flex-wrap:wrap; gap:8px; }
+  .num-grid label{ display:inline-flex; align-items:center; gap:6px; margin:0; padding:6px 10px; border:1px solid var(--line); border-radius:999px; font-size:13px; cursor:pointer; }
+  .bot-card{ display:flex; flex-direction:column; gap:8px; }
+  .bot-rules{ font-size:13px; }
+  .bot-rules li{ margin:2px 0; }
+  .switch-row{ display:flex; align-items:center; gap:10px; }
+  .rule-row input:disabled{ opacity:.4; }
+</style>
+
+<h1>Bots</h1>
+<p class="sub">Template-driven auto-reply bots. A bot answers inbound 1:1 messages on its bound number(s) by matching keyword rules to reply templates — all sent through the same anti-ban queue. AI answers for off-menu questions arrive in a later version.</p>
+
+<div class="card">
+  <div class="switch-row">
+    <form method="post" action="/bots/settings" id="master-form">
+      <label class="switch-row" style="margin:0;">
+        <input type="checkbox" name="enabled" <%= botsEnabled ? 'checked' : '' %> onchange="document.getElementById('master-form').submit();" />
+        <strong>Auto-reply globally <%= botsEnabled ? 'ON' : 'OFF' %></strong>
+      </label>
+    </form>
+    <span class="muted-note">Master switch — when OFF, no bot replies to anything, regardless of per-bot settings.</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2><%= e ? 'Edit bot' : 'New bot' %></h2>
+  <form method="post" action="<%= e ? '/bots/' + e.id : '/bots' %>" id="bot-form">
+    <input type="hidden" name="number_ids_json" id="number_ids_json" />
+    <input type="hidden" name="rules_json" id="rules_json" />
+
+    <div class="row" style="align-items:flex-end;">
+      <div style="flex:1; min-width:220px;">
+        <label for="name">Name</label>
+        <input id="name" name="name" type="text" value="<%= e ? esc(e.name) : '' %>" placeholder="e.g. Sales bot" />
+      </div>
+      <div style="min-width:160px;">
+        <label class="switch-row" style="margin-top:24px;">
+          <input type="checkbox" name="active" <%= !e || e.active ? 'checked' : '' %> /> Active
+        </label>
+      </div>
+    </div>
+
+    <label style="margin-top:14px;">Answers on these numbers <span class="muted-note">(a number can be bound to only one bot)</span></label>
+    <% if (numbers.length === 0) { %>
+      <p class="muted-note">No numbers linked yet. Link a number on the Numbers page first.</p>
+    <% } else { %>
+      <div class="num-grid">
+        <% numbers.forEach(function(n){ var checked = e && e.number_ids.indexOf(n.id) !== -1; %>
+          <label><input type="checkbox" class="num-check" value="<%= n.id %>" <%= checked ? 'checked' : '' %> /> <%= esc(n.label || n.phone_number || n.id) %><% if (n.status !== 'linked') { %> <span class="muted-note">(<%= n.status %>)</span><% } %></label>
+        <% }); %>
+      </div>
+    <% } %>
+
+    <div class="row" style="align-items:flex-end; margin-top:16px;">
+      <div style="min-width:150px;">
+        <label class="switch-row"><input type="checkbox" name="business_hours_enabled" id="bh_enabled" <%= e && e.business_hours_enabled ? 'checked' : '' %> /> Business hours only</label>
+      </div>
+      <div style="min-width:120px;">
+        <label for="bh_start">Start (HH:MM)</label>
+        <input id="bh_start" name="business_hours_start" type="time" value="<%= e ? esc(e.business_hours_start||'') : '' %>" />
+      </div>
+      <div style="min-width:120px;">
+        <label for="bh_end">End (HH:MM)</label>
+        <input id="bh_end" name="business_hours_end" type="time" value="<%= e ? esc(e.business_hours_end||'') : '' %>" />
+      </div>
+      <span class="muted-note" style="align-self:center;">Outside the window the bot stays silent. Times are server display timezone.</span>
+    </div>
+
+    <label style="margin-top:18px;">Rules — <span class="muted-note">match an inbound keyword to a reply template. Evaluated top-to-bottom, first match wins. Mark one as the default case for off-menu input.</span></label>
+    <% if (templates.length === 0) { %>
+      <p class="muted-note">No templates yet. Create a template on the Templates page first — rules reply with a template.</p>
+    <% } %>
+    <div class="rule-head">
+      <span>Trigger type</span><span>Trigger value</span><span>Reply template</span><span>Default</span><span></span>
+    </div>
+    <div id="rules"></div>
+    <button type="button" class="btn secondary" id="add-rule" style="margin-top:4px;">+ Add rule</button>
+
+    <div class="row" style="margin-top:16px;">
+      <button type="submit"><%= e ? 'Save changes' : 'Create bot' %></button>
+      <% if (e) { %><a class="btn secondary" href="/bots">Cancel</a><% } %>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>All bots</h2>
+  <% if (bots.length === 0) { %>
+    <span class="sub">No bots yet — create one above.</span>
+  <% } else { %>
+    <div class="stat-grid">
+      <% bots.forEach(function(b){ %>
+        <div class="card bot-card" style="margin-bottom:0;">
+          <div class="row" style="justify-content:space-between;">
+            <strong><%= esc(b.name) %></strong>
+            <span class="pill <%= b.active ? 'on' : '' %>"><%= b.active ? 'Active' : 'Paused' %></span>
+          </div>
+          <div class="muted-note">
+            Numbers:
+            <% if (b.number_ids.length === 0) { %>none bound<% } else { %><%= b.number_ids.map(function(id){ return numLabel[id] || id; }).join(', ') %><% } %>
+            <% if (b.business_hours_enabled) { %> · Hours <%= esc(b.business_hours_start||'?') %>–<%= esc(b.business_hours_end||'?') %><% } %>
+          </div>
+          <% if (b.rules.length) { %>
+            <ul class="bot-rules">
+              <% b.rules.forEach(function(r){ %>
+                <li><% if (r.is_default_case) { %><span class="pill">default</span> <% } else { %><code><%= r.trigger_type %>: <%= esc(r.trigger_value) %></code> <% } %>&rarr; <%= esc(tplName[r.template_id] || 'unknown template') %></li>
+              <% }); %>
+            </ul>
+          <% } else { %>
+            <span class="muted-note">No rules yet.</span>
+          <% } %>
+          <div class="row">
+            <a class="btn secondary" href="/bots?edit=<%= b.id %>">Edit</a>
+            <form method="post" action="/bots/<%= b.id %>/toggle"><button class="secondary" type="submit"><%= b.active ? 'Pause' : 'Activate' %></button></form>
+            <form method="post" action="/bots/<%= b.id %>/delete" onsubmit="return confirm('Delete this bot?');"><button class="danger" type="submit">Delete</button></form>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  <% } %>
+</div>
+
+<script>
+(function () {
+  var TRIGGER_TYPES = <%- JSON.stringify(triggerTypes) %>;
+  var TEMPLATES = <%- JSON.stringify(templates.map(function(t){ return { id: t.id, name: t.name }; })) %>;
+  var EXISTING = <%- JSON.stringify(e ? e.rules.map(function(r){ return { trigger_type:r.trigger_type, trigger_value:r.trigger_value, template_id:r.template_id, is_default_case:r.is_default_case }; }) : []) %>;
+
+  var rulesWrap = document.getElementById('rules');
+
+  function optionList(values, selected, labels) {
+    return values.map(function (v, i) {
+      var label = labels ? labels[i] : v;
+      return '<option value="' + v + '"' + (v === selected ? ' selected' : '') + '>' + label + '</option>';
+    }).join('');
+  }
+
+  function addRow(rule) {
+    rule = rule || { trigger_type: 'keyword', trigger_value: '', template_id: (TEMPLATES[0] && TEMPLATES[0].id) || '', is_default_case: false };
+    var row = document.createElement('div');
+    row.className = 'rule-row';
+    var tplIds = TEMPLATES.map(function (t) { return t.id; });
+    var tplNames = TEMPLATES.map(function (t) { return t.name; });
+    row.innerHTML =
+      '<select class="r-type">' + optionList(TRIGGER_TYPES, rule.trigger_type) + '</select>' +
+      '<input class="r-value" type="text" placeholder="e.g. HELP, 1, hours" value="' + (rule.trigger_value || '').replace(/"/g, '&quot;') + '" />' +
+      '<select class="r-tpl">' + optionList(tplIds, rule.template_id, tplNames) + '</select>' +
+      '<label style="margin:0;justify-self:center;"><input class="r-default" type="checkbox"' + (rule.is_default_case ? ' checked' : '') + ' /></label>' +
+      '<button type="button" class="btn danger rm" title="Remove">&times;</button>';
+    rulesWrap.appendChild(row);
+    var def = row.querySelector('.r-default');
+    var val = row.querySelector('.r-value');
+    function syncDefault() { val.disabled = def.checked; if (def.checked) val.value = ''; }
+    def.addEventListener('change', syncDefault);
+    syncDefault();
+    row.querySelector('.rm').addEventListener('click', function () { row.remove(); });
+  }
+
+  document.getElementById('add-rule').addEventListener('click', function () { addRow(); });
+
+  // Seed rows: existing rules in edit mode, else one blank starter row.
+  if (EXISTING.length) { EXISTING.forEach(addRow); } else if (TEMPLATES.length) { addRow(); }
+
+  document.getElementById('bot-form').addEventListener('submit', function () {
+    var numberIds = Array.prototype.slice.call(document.querySelectorAll('.num-check'))
+      .filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
+    document.getElementById('number_ids_json').value = JSON.stringify(numberIds);
+
+    var rules = Array.prototype.slice.call(rulesWrap.querySelectorAll('.rule-row')).map(function (row) {
+      return {
+        trigger_type: row.querySelector('.r-type').value,
+        trigger_value: row.querySelector('.r-value').value.trim(),
+        template_id: row.querySelector('.r-tpl').value,
+        is_default_case: row.querySelector('.r-default').checked
+      };
+    }).filter(function (r) { return r.template_id && (r.is_default_case || r.trigger_value); });
+    document.getElementById('rules_json').value = JSON.stringify(rules);
+  });
+})();
+</script>
+
+<%- include('partials/foot') %>

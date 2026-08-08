@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WaGuard v3 — PRD</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    html { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    body { font-feature-settings: "cv11", "ss01"; }
+    @media print {
+      html { background: white !important; color: black !important; color-scheme: light; }
+      html.dark { color-scheme: light; }
+      html.dark body, html.dark * { background: white !important; color: black !important; border-color: #d4d4d8 !important; }
+      .no-print { display: none !important; }
+      .print-card { break-inside: avoid; page-break-inside: avoid; }
+      header.sticky { position: static !important; backdrop-filter: none !important; }
+      main { padding-top: 0 !important; }
+      a { color: black !important; text-decoration: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 antialiased">
+  <header class="sticky top-0 z-10 backdrop-blur bg-zinc-50/80 dark:bg-zinc-950/80 border-b border-zinc-200 dark:border-zinc-800">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400">PRD · WaGuard v3</span>
+      <button id="theme-toggle" class="no-print inline-flex items-center justify-center w-9 h-9 rounded-md border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition" aria-label="Toggle theme">
+        <i data-lucide="sun" class="hidden dark:inline-block w-4 h-4"></i>
+        <i data-lucide="moon" class="inline-block dark:hidden w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-14">
+
+    <!-- DISCLAIMER -->
+    <div class="rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 p-4 text-sm text-amber-900 dark:text-amber-200">
+      <p><strong class="font-semibold">About this file:</strong> Everything in <code class="font-mono text-xs">_build_plan/</code> (this PRD and the per-milestone folders) is a temporary documentation artifact for the build-out of this codebase. These files are not functional — no code, configuration, runtime logic, tests, or deployment process should import, read, reference, or depend on anything in <code class="font-mono text-xs">_build_plan/</code>. Once the milestones are built and shipped, the entire <code class="font-mono text-xs">_build_plan/</code> folder is expected to be deleted from the codebase. (This <code class="font-mono text-xs">v3/</code> folder is the third build phase; v1 is at the root, v2 in <code class="font-mono text-xs">_build_plan/v2/</code>.)</p>
+    </div>
+
+    <!-- HERO -->
+    <section>
+      <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">WaGuard v3</h1>
+      <p class="mt-5 text-lg sm:text-xl text-zinc-600 dark:text-zinc-400 leading-relaxed">A template-driven WhatsApp auto-reply bot with an optional, paid AI fallback. Bots reply from assigned templates via keyword rules; when AI is switched on, off-script questions are answered from a per-bot knowledge base. Provider-pluggable (Claude default, OpenAI, Ollama), fully API-exposed, and turnkey to deploy on Cloudways.</p>
+      <div class="mt-6 flex flex-wrap gap-2">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Node.js + TypeScript</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Fastify 5</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">better-sqlite3</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">EJS dashboard</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Baileys 7</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Claude / OpenAI / Ollama</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Docker · Cloudways (PM2 + .htaccess)</span>
+      </div>
+    </section>
+
+    <!-- CROSS-CUTTING: API-FIRST -->
+    <div class="rounded-lg border border-sky-200 dark:border-sky-900/60 bg-sky-50 dark:bg-sky-950/30 p-4 text-sm text-sky-900 dark:text-sky-200">
+      <p class="flex items-start gap-2"><i data-lucide="code-2" class="w-4 h-4 mt-0.5 shrink-0"></i><span><strong class="font-semibold">API-first & self-documenting (every milestone):</strong> Every capability ships a token-authed REST API <em>in the same milestone</em> that introduces it — never deferred to one "API milestone." Each endpoint lands in the OpenAPI spec (<code class="font-mono text-xs">/openapi.json</code>), <code class="font-mono text-xs">/docs</code>, and the <code class="font-mono text-xs">/developers</code> portal at the same detail as the existing v1/v2 docs (purpose, auth, payload examples, runnable console entry). A downstream app discovers <em>what to call and how</em> entirely from the published docs, with no out-of-band explanation.</span></p>
+    </div>
+
+    <!-- WHAT THE APP DOES -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>What the app does (new in v3)
+      </h2>
+      <ul class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3 list-none p-0">
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="bot" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div><p class="font-medium text-zinc-900 dark:text-zinc-100">Create bots per number</p><p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Build bots and bind each to linked WhatsApp numbers — one active bot per number.</p></div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="git-branch" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div><p class="font-medium text-zinc-900 dark:text-zinc-100">Template menu flows</p><p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Assign v2 templates and define keyword→template rules with a default-case fallback.</p></div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="message-square" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div><p class="font-medium text-zinc-900 dark:text-zinc-100">Auto-reply in real time</p><p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Inbound messages answered automatically through the existing anti-ban / health / consent engine.</p></div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="wand-2" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div><p class="font-medium text-zinc-900 dark:text-zinc-100">AI toggle (paid upgrade)</p><p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Off = template-only. On = off-script questions answered from a persona + knowledge base.</p></div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="plug" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div><p class="font-medium text-zinc-900 dark:text-zinc-100">AI Provider Hub</p><p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Connect Claude / OpenAI / Ollama, test the connection, route models, cap monthly spend.</p></div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="book-open" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div><p class="font-medium text-zinc-900 dark:text-zinc-100">Per-bot knowledge base</p><p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Paste text or upload docs; entries become semantically searchable for the AI fallback.</p></div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="code" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div><p class="font-medium text-zinc-900 dark:text-zinc-100">Full bot API + docs</p><p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Manage bots, rules, KB, and AI config over the API; preview a reply before sending.</p></div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="bar-chart-3" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div><p class="font-medium text-zinc-900 dark:text-zinc-100">Conversation log & analytics</p><p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Per-thread history plus KPIs: auto-resolution, rule-vs-AI share, token spend, deflection.</p></div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><i data-lucide="rocket" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i></div>
+            <div><p class="font-medium text-zinc-900 dark:text-zinc-100">Turnkey Cloudways deploy</p><p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">A Git deploy builds and (re)starts under PM2 with little or no manual server work.</p></div>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <!-- ALREADY PROVIDED -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="package-check" class="w-3.5 h-3.5"></i>Already provided by v1 + v2
+      </h2>
+      <ul class="mt-5 flex flex-wrap gap-2 list-none p-0">
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>Single Docker container + Cloudways PM2/.htaccess deploy</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>Admin login + API tokens</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>OpenAPI docs + /developers portal & console</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>QR number linking + auto-reconnect</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>Anti-ban send queue + pacing engine</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>Inbound capture + media download</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>Signed webhooks + delivery log</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>Health monitoring + auto cool-down</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>Consent guardrails + STOP auto-block</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>Template library ({{placeholders}} + buttons)</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>Contact import, lists, broadcasts, groups</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>Analytics dashboard + branded shell/theme</li>
+      </ul>
+    </section>
+
+    <!-- OUT OF SCOPE -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="minus-circle" class="w-3.5 h-3.5"></i>Out of scope (v3) — logged as v4 backlog
+      </h2>
+      <ul class="mt-5 space-y-2.5 list-none p-0">
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Multi-step / stateful flows</span><span class="text-zinc-500 dark:text-zinc-400"> — v3 is stateless keyword routing; no memory of where a sender is in a multi-turn flow.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Human handoff / live-agent inbox</span><span class="text-zinc-500 dark:text-zinc-400"> — no in-app takeover UI (webhooks can still notify an external system).</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">AI copywriter</span><span class="text-zinc-500 dark:text-zinc-400"> — generating/optimizing outbound campaign copy is a separate add-on.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Pre-send AI compliance / spam check</span><span class="text-zinc-500 dark:text-zinc-400"> — flagging risky wording before a send.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">AI translation / localization</span><span class="text-zinc-500 dark:text-zinc-400"> — auto-detecting and replying in the sender's language.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Smart send-time optimization</span><span class="text-zinc-500 dark:text-zinc-400"> — predicting the best window per recipient.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Multi-tenant / per-seat config & roles</span><span class="text-zinc-500 dark:text-zinc-400"> — v3 stays single-admin owner.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Voice / calls</span><span class="text-zinc-500 dark:text-zinc-400"> — text messaging only.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Dedicated numbered-button reply parser</span><span class="text-zinc-500 dark:text-zinc-400"> — the bot routes on inbound text via ordinary keyword rules.</span></span></li>
+      </ul>
+    </section>
+
+    <!-- INTEGRATIONS -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="plug" class="w-3.5 h-3.5"></i>External integrations (AI providers — pluggable)
+      </h2>
+      <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i><h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Anthropic (Claude)</h3><span class="ml-auto text-xs text-zinc-500 dark:text-zinc-400">Default</span></div>
+          <p class="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Recommended default for the AI fallback — best quality for grounded replies. Latest Claude models.</p>
+          <p class="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="key" class="w-3 h-3"></i>Credentials needed</p>
+          <ul class="mt-2 space-y-1.5 list-none p-0"><li class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="key-round" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Anthropic API key</li></ul>
+        </div>
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2"><i data-lucide="plug" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i><h3 class="font-semibold text-zinc-900 dark:text-zinc-100">OpenAI</h3><span class="ml-auto text-xs text-zinc-500 dark:text-zinc-400">Alternative</span></div>
+          <p class="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Alternative/fallback provider for replies and embeddings; select via the same provider hub.</p>
+          <p class="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="key" class="w-3 h-3"></i>Credentials needed</p>
+          <ul class="mt-2 space-y-1.5 list-none p-0"><li class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="key-round" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>OpenAI API key</li></ul>
+        </div>
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2"><i data-lucide="server" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i><h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Ollama (self-hosted)</h3><span class="ml-auto text-xs text-zinc-500 dark:text-zinc-400">Cloud-free</span></div>
+          <p class="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Local/air-gapped option — no data leaves the server. Also works with any OpenAI-compatible local server.</p>
+          <p class="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="key" class="w-3 h-3"></i>Credentials needed</p>
+          <ul class="mt-2 space-y-1.5 list-none p-0"><li class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="key-round" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Endpoint URL (no key required)</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- DATA MODEL -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="database" class="w-3.5 h-3.5"></i>Data model (new in v3)
+      </h2>
+      <p class="mt-3 text-sm text-zinc-500 dark:text-zinc-400">What the app needs to remember, on top of all v1/v2 entities.</p>
+      <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2"><i data-lucide="bot" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i><h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Bot</h3></div>
+          <table class="mt-4 w-full text-sm"><tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">name</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">friendly label (e.g. "Sales bot").</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">number scope</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">which number(s) it answers; one active bot per number.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">AI enabled</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">the paid AI-fallback toggle.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">persona</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">system instructions used only when AI is on.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">re-show menu</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">whether to append the menu after an AI reply.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">business hours</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">optional active window.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">active</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">running or paused (kill switch).</td></tr>
+          </tbody></table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">Related to</span> · WhatsApp Number, Bot Rule, Knowledge Base Entry</p>
+        </div>
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2"><i data-lucide="git-branch" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i><h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Bot Rule</h3></div>
+          <table class="mt-4 w-full text-sm"><tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">belongs to</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">the Bot this rule is part of.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">trigger type</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">keyword, contains, exact, or regex.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">trigger value</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">the text/pattern that fires it (e.g. HELP, 1).</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">reply template</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">the v2 template sent on match.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">priority</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">evaluation order; first match wins.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">is default case</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">fallback for off-menu input.</td></tr>
+          </tbody></table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">Related to</span> · Bot, Message Template</p>
+        </div>
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2"><i data-lucide="book-open" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i><h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Knowledge Base Entry</h3></div>
+          <table class="mt-4 w-full text-sm"><tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">belongs to</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">the Bot whose AI can draw on it.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">title</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">short label for the entry.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">source text</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">content the AI can answer from.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">source reference</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">optional origin note (filename, URL).</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">embedding vector</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">semantic representation for retrieval.</td></tr>
+          </tbody></table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">Related to</span> · Bot</p>
+        </div>
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2"><i data-lucide="plug" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i><h3 class="font-semibold text-zinc-900 dark:text-zinc-100">AI Provider Config</h3></div>
+          <table class="mt-4 w-full text-sm"><tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">provider</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">Claude, OpenAI, or Ollama.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">credentials</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">API key or endpoint, DB-stored (.env can bootstrap).</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">enabled / default</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">whether usable, and which is the default.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">model routing</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">which model for replies vs. embeddings.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">monthly budget</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">token/cost cap + graceful degradation.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">usage this period</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">running total against the budget.</td></tr>
+          </tbody></table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">Related to</span> · global (consulted by any bot's AI fallback)</p>
+        </div>
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2"><i data-lucide="scroll-text" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i><h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Bot Reply Log</h3></div>
+          <table class="mt-4 w-full text-sm"><tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">inbound message</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">sender, text, timestamp.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">handled by bot</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">which Bot processed it.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">outcome</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">rule / AI / default-case / nothing.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">matched rule/template</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">what was used, if any.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">reply text</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">what the bot actually sent.</td></tr>
+            <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">AI usage</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">provider, model, tokens, cost if AI answered.</td></tr>
+          </tbody></table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">Related to</span> · Bot, Message, Bot Rule, Message Template</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- MILESTONES -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="route" class="w-3.5 h-3.5"></i>Milestones
+      </h2>
+      <div class="mt-5 space-y-5">
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">1</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Bots & Template Rules</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">The template-driven bot end-to-end with no AI — the free tier. Create a bot, give it a template flow, and watch it auto-reply on the real linked number.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Bots dashboard: create/edit/delete, bind to numbers (one active bot per number)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Rule builder: trigger→template, priority order, default-case flag</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Bot runtime auto-sends through the anti-ban / health / consent engine</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Per-bot + global kill switch; optional business hours; reply logging</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="code-2" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-sky-600 dark:text-sky-400"></i><span>Token-authed bots/rules REST API + OpenAPI/portal docs</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Any AI, KB, persona, or provider config</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Bot API / developer-portal docs</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Analytics/KPI view; stateful multi-turn memory</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> A HELP-menu bot bound to the test number replies correctly to a matching keyword and gives the default-case reply for off-menu input, paced by the anti-ban engine.</span></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">2</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">AI Provider Hub</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">The pluggable AI provider layer and its admin surface, so later milestones can generate replies. Stands up and verifies the plumbing — nothing calls it in the bot flow yet.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>AI Providers screen: connect Claude/OpenAI/Ollama, DB-stored keys + .env bootstrap</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Test-connection button with a real round-trip</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Single AIProviderInterface abstraction; per-task model routing</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Monthly token/cost budget + usage tally + graceful degradation</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="code-2" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-sky-600 dark:text-sky-400"></i><span>Provider-config REST API (no secrets returned) + docs</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Wiring AI into the bot runtime</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Knowledge-base ingest / embeddings storage</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Downstream API for provider config</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> The admin connects Claude, clicks "test connection" and sees it succeed, sets default provider, model routing, and a monthly budget — all persisted across a restart.</span></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">3</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">AI Fallback (RAG)</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">Turn the paid AI toggle on: give each bot a knowledge base and a persona, and wire AI into the runtime so off-script input is answered from that knowledge instead of the default-case template.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Per-bot Knowledge Base: paste text / upload docs → chunk + embed</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Per-bot AI toggle, persona, and re-show-menu option</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Runtime: off-script input → retrieve KB → grounded AI reply → optional menu</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Graceful fallback to default-case template; AI outcomes logged with cost</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="code-2" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-sky-600 dark:text-sky-400"></i><span>Per-bot AI-settings + knowledge-base REST API + docs</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Bot/KB/AI-config REST API and portal docs</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Analytics dashboard</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Multi-turn memory, translation, human handoff</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> With AI on and a small KB loaded, an off-menu free-form question returns a correct, KB-grounded answer then the menu; turning AI off makes the same question fall back to the default-case template.</span></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">4</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Bot Preview & Developer-Portal Completion</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">The per-feature APIs already shipped with M1–M3. This milestone completes the <em>developer experience</em>: the preview/trigger-reply endpoint and a polished end-to-end portal walkthrough so a downstream team can self-serve with zero hand-holding.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Preview/trigger-reply endpoint (rule vs AI vs default-case) without sending</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>"Build a bot" getting-started guide stitching the per-milestone endpoints</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Audit: every v3 endpoint documented to v1/v2 quality; nothing undocumented</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Analytics API and dashboard</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>New bot behavior / new CRUD — that shipped in M1–M3</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> Using only a token and the /developers portal, a developer follows the getting-started guide to create a bot, add a rule and KB entry, enable AI, and call the preview endpoint — discovering every call purely from the docs.</span></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">5</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Conversation Log & Bot Analytics</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">Surface the Bot Reply Log as a human-readable conversation view plus KPIs, so the admin (and their clients) can see the bot working and justify the AI upgrade.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Conversation Log: per-thread history with rule/AI/default-case attribution</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>KPIs: auto-resolution rate, rule-vs-AI share, token spend, deflection</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>CSV export + read-only analytics API (published in OpenAPI/portal docs)</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Real-time streaming, custom report builder, scheduled email reports</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Any change to bot behavior — reads existing log data</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> After the bot handles several messages, the admin opens the Conversation Log with correct attribution, views KPI tiles for a date range, exports a CSV, and fetches the same KPIs from the analytics API with a token.</span></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">6</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Turnkey Cloudways Deploy</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">Make deploying to Cloudways near-zero-touch on top of the existing .htaccess / PM2 setup, so shipping updates needs little or no manual server work.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Tracked config + hardened deploy: build, install, PM2 (re)start, no hand-editing</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Idempotent v3 handling: new deps, DB migrations, AI-provider .env bootstrap</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Updated verify/troubleshoot docs; .htaccess + PM2 survive a redeploy</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Docker on Cloudways; changes to the local Docker workflow</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Multi-server / autoscaling / CI beyond Cloudways Git deploy</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Provisioning a fresh box from scratch</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> Pushing v3 through Cloudways Git deploy + the deploy script brings the app (bot + AI layer) up cleanly under PM2, reachable via the Application URL, migrations applied, no manual server edits.</span></p>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <footer class="pt-8 border-t border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-400">
+      Generated by <span class="font-medium">bm-prd-creator</span>. Open the milestone-1 <code class="font-mono">prompt.md</code> to start building.
+    </footer>
+  </main>
+
+  <script>
+    (function () {
+      var html = document.documentElement;
+      var stored = localStorage.getItem('prd-theme');
+      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var initial = stored ? stored : (prefersDark ? 'dark' : 'light');
+      if (initial === 'dark') html.classList.add('dark');
+      var btn = document.getElementById('theme-toggle');
+      if (btn) {
+        btn.addEventListener('click', function () {
+          var isDark = html.classList.toggle('dark');
+          localStorage.setItem('prd-theme', isDark ? 'dark' : 'light');
+        });
+      }
+      if (window.lucide) window.lucide.createIcons();
+    })();
+  </script>
+</body>
+</html>
